@@ -1,23 +1,37 @@
 # cd-bookmarks.sh - bookmarks with cd
 
 
-This (ab)uses the CDPATH functionality of bash to add bookmark functionality.
+This (ab)uses the CDPATH functionality of bash to add bookmark functionality, with tab completion.
+
+Why:  CDPATH is cool, but it's useability really sucks.  Turning it on and off, or using aliases, or other attempts to tame it just didn't give me the desired result.  This allows us to dynamically set CDPATH for just this command.  And not just one CDPATH, but as many as you want!
 
 Examples:
 
-`cd [-b] bookmark`
+    cd -b  # list bookmarks
 
-`cd [-b] bookmark subdir`
+    cd [-b] bookmark # cd to a bookmark
 
-If a bookmark and a directory share a name, the local directory takes precedence.
+    cd [-b] bookmark subdir # cd to a directory below a bookmark
 
-`CD_BOOKMARKS["name"]="/path/to/bookmark"`
 
-`CD_BOOKMARKS["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"`
+Set your bookmarks, in .bashrc or elsewhere:
+
+    CD_BOOKMARKS["name"]="/path/to/bookmark"
+
+    CD_BOOKMARKS["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
+
+    cd-bookmarks-update
 
 After updating bookmarks run `cd-bookmarks-update`
 
+The default "bookmark" is ".", but you can change that if you want.
+
+    CD_BOOKMARKS["default"]=".:${HOME}/projects/"
+
 * Known Issues
 
-Other CD flags are not passed, such as
-    -L -P -e -@
+Other CD flags are not passed, such as `-L -P -e -@`
+
+Using cd to jump to a multipath bookmark will fail
+
+This should be simple to fix.

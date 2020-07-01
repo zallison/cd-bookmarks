@@ -23,9 +23,16 @@ alias cd=bcd
 complete -F _bcd cd
 
 function bcd {
+    local CDOPTS
+
+    while [[ "$1" == "-"[^b]* ]]; do
+        CDOPTS+=" $1"
+        shift
+    done
+
     if [[ -z "$1" ]]; then
         # No arguments
-        \cd
+        \cd ${CDOPTS}
         return
     elif [[ "$1" == "-b" && -z "$2" ]]; then
         # only -b
@@ -48,13 +55,13 @@ function bcd {
         return 1
     elif [[ ! -z "$2" ]]; then
         # Two args: bookmark subdir
-        CDPATH=${CD_BOOKMARKS[$1]} \cd "$2"
+        CDPATH=${CD_BOOKMARKS[$1]} \cd ${CDOPTS} "$2"
     elif [[ ! -z $1 && ! -d "$1" && ! -z "${CD_BOOKMARKS[$1]}" ]]; then
         # One arg that is a bookmark
-        \cd ${CD_BOOKMARKS[$1]}
+        \cd ${CDOPTS} ${CD_BOOKMARKS[$1]%%:*}
     else
         # One arg  use the default search path.
-        CDPATH=${CD_BOOKMARKS["default"]} \cd "$1"
+        CDPATH=${CD_BOOKMARKS["default"]} \cd ${CDOPTS} "$1"
     fi
 }
 
@@ -77,15 +84,13 @@ function _bcd {
         fi
     fi
 
-    if [[ "$curr" == "-"* ]]; then
-        compopt +o nospace
-        COMPREPLY=($(compgen -W "- -b" -- "$curr") )
-        return
-    fi
-
     if [[ "$prev" == "-b" ]]; then
         compopt +o nospace
         COMPREPLY=($(compgen -W "${BOOKMARK_INDEX}" -- "$curr") )
+        return
+    elif [[ "$curr" == "-"* ]]; then
+        compopt +o nospace
+        COMPREPLY=($(compgen -W "- -L -P -e -@ -b" -- "$curr") )
         return
     fi
 

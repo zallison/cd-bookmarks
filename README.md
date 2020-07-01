@@ -27,11 +27,3 @@ After updating bookmarks run `cd-bookmarks-update`
 The default "bookmark" is ".", but you can change that if you want.
 
     CD_BOOKMARKS["default"]=".:${HOME}/projects/"
-
-* Known Issues
-
-Other CD flags are not passed, such as `-L -P -e -@`
-
-Using cd to jump to a multipath bookmark will fail
-
-This should be simple to fix.

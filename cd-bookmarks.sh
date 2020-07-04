@@ -6,12 +6,29 @@
 # cd-bookmarks.sh - bookmarks with cd
 #
 # This (ab)uses the CDPATH functionality of bash to add bookmark functionality.
-#
-## Examples:
-# cd [-b] bookmark
-# cd [-b] bookmark subdir
-#
-# If a bookmark and a directory share a name, the local directory takes precedence.
+
+function _bcd_help {
+    \cd --help
+    echo
+    echo '    CD-BOOKMARKS.sh:
+    This script has added the ability to use bookmarks to cd.
+    Examples:
+        cd -b  # list bookmarks
+        cd [-b] bookmark # cd to a bookmark
+        cd [-b] bookmark subdir # cd to a directory below a bookmark
+
+    Set your bookmarks, in .bashrc or elsewhere:
+        CD_BOOKMARKS["name"]="/path/to/bookmark"
+        CD_BOOKMARKS["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
+        cd-bookmarks-update
+
+    After updating bookmarks run `cd-bookmarks-update`
+
+    The default "bookmark" is ".", but you can change that if you want.
+        CD_BOOKMARKS["default"]=".:${HOME}/projects/"'
+
+}
+
 
 declare -A CD_BOOKMARKS
 declare CD_INCLUDEBOOKMARKS=0 # include bookmarks in tab completion for directories
@@ -26,6 +43,10 @@ function bcd {
     local CDOPTS
 
     while [[ "$1" == "-"[^b]* ]]; do
+        if [[ "$1" == "--help" ]]; then
+            _bcd_help
+            return
+        fi
         CDOPTS+=" $1"
         shift
     done
@@ -90,7 +111,7 @@ function _bcd {
         return
     elif [[ "$curr" == "-"* ]]; then
         compopt +o nospace
-        COMPREPLY=($(compgen -W "- -L -P -e -@ -b" -- "$curr") )
+        COMPREPLY=($(compgen -W "- -L -P -e -@ --help -b" -- "$curr") )
         return
     fi
 

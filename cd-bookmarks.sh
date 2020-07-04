@@ -57,11 +57,7 @@ function bcd {
         return
     elif [[ "$1" == "-b" && -z "$2" ]]; then
         # only -b
-        echo "Bookmarks:"
-        echo "  [default] -> ${CD_BOOKMARKS[default]}"
-        for i in "${!CD_BOOKMARKS[@]}"; do
-            [[ $i != "default" ]] && echo "  $i -> ${CD_BOOKMARKS[$i]}"
-        done
+        _bcd_show_list
         return
     fi
 
@@ -163,6 +159,26 @@ function _bcd_comp {
     fi
 
     return
+}
+
+function _bcd_show_list {
+    function _add_x_spaces {
+        for x in $(seq 1 $(( $1 )) ); do echo -n " "; done
+    }
+    echo "Bookmarks:"
+    local maxlength tmp="[default]"
+    maxlength=${#tmp}
+    for i in "${!CD_BOOKMARKS[@]}"; do
+        [[ ${#i} -gt ${maxlength} ]] && maxlength=${#i}
+    done
+    echo "  [default] -> ${CD_BOOKMARKS[default]}"
+    for i in "${!CD_BOOKMARKS[@]}"; do
+        if [[ $i != "default" ]]; then
+            echo -n "  $i "
+            _add_x_spaces $(( ${maxlength} - ${#i} ))
+            echo -e "-> ${CD_BOOKMARKS[$i]}"
+        fi
+    done
 }
 
 function cd-bookmarks-update() {

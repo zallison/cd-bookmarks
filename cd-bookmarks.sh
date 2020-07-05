@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Copyright 2020, Zack Allison <zack@zackallison.com>
-# License: Public Domain
+# License: MIT License
 #
 # cd-bookmarks.sh - bookmarks with cd
 #

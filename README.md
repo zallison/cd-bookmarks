@@ -7,12 +7,9 @@ Why:  CDPATH is cool, but it's useability really sucks.  Turning it on and off, 
 
 Examples:
 
-    cd -b  # list bookmarks
+Load cd-bookmarks, in .bashrc or elsewhere:
 
-    cd [-b] bookmark # cd to a bookmark
-
-    cd [-b] bookmark subdir # cd to a directory below a bookmark
-
+    source /path/to/cd-bookmarks.sh
 
 Set your bookmarks, in .bashrc or elsewhere:
 
@@ -21,6 +18,15 @@ Set your bookmarks, in .bashrc or elsewhere:
     CD_BOOKMARKS["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
 
     cd-bookmarks-update
+
+Usage:
+
+    cd -b  # list bookmarks
+
+    cd [-b] bookmark # cd to a bookmark
+
+    cd [-b] bookmark subdir # cd to a directory below a bookmark
+
 
 After updating bookmarks run `cd-bookmarks-update`
 

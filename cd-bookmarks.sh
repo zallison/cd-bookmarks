@@ -142,6 +142,7 @@ function _bcd_comp {
         k="${#COMPREPLY[@]}";
         for j in $( compgen -d -- "$i"/"$cur" );
         do
+            printf -v j "%q" "$j" # Quote spaces, etc.
             if [[ ( -n $mark_symdirs && -h $j || -n $mark_dirs && ! -h $j ) && ! -d ${j#$i/} ]]; then
                 j+="/"
             fi

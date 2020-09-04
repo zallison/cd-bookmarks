@@ -109,13 +109,17 @@ function _bcd {
         compopt +o nospace
         COMPREPLY=($(compgen -W "- -L -P -e -@ --help -b" -- "$curr") )
         return
+    elif [[ "$curr" && ${CD_BOOKMARKS["$curr"]} ]]; then
+        compopt +o nospace
+        COMPREPLY=($curr)
+        return
     fi
 
     # "Normal" cd completion with CDPATH set
     CDPATH=$TMPCDPATH _bcd_comp "$*"
 
     # Add in the bookmarks
-    if [[ "$prev" &&  ! "${CD_BOOKMARKS[$prev]}" && "$CD_INCLUDEBOOKMARKS" == "1" ]]; then
+    if [[ "$CD_INCLUDEBOOKMARKS" == "1" ]]; then
         COMPREPLY+=($(compgen -W "${BOOKMARK_INDEX}" -- "$curr") )
     fi
 }
@@ -126,7 +130,7 @@ function _bcd_comp {
     _init_completion || return;
     local IFS='
 '
-    compopt +o filenames -o nospace;
+    compopt -o filenames -o nospace;
 
     if [[ -z "${CDPATH:-}" || "$cur" == ?(.)?(.)/* ]]; then
         _filedir -d
@@ -142,7 +146,6 @@ function _bcd_comp {
         k="${#COMPREPLY[@]}";
         for j in $( compgen -d -- "$i"/"$cur" );
         do
-            printf -v j "%q" "$j" # Quote spaces, etc.
             if [[ ( -n $mark_symdirs && -h $j || -n $mark_dirs && ! -h $j ) && ! -d ${j#$i/} ]]; then
                 j+="/"
             fi

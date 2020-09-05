@@ -10,7 +10,9 @@
 function _bcd_help {
     \cd --help
     echo
-    echo '    CD-BOOKMARKS.sh:
+    echo '    ----------------
+    CD-BOOKMARKS.sh:
+    ----------------
     This script has added the ability to use bookmarks to cd.
     Examples:
         cd -b  # list bookmarks
@@ -43,7 +45,7 @@ function bcd {
     local CDOPTS
 
     while [[ "$1" == "-"[^b]* ]]; do
-        if [[ "$1" == "--help" ]]; then
+        if [[ "$1" == "--help" || "$1" == "-h" ]]; then
             _bcd_help
             return
         fi
@@ -107,7 +109,7 @@ function _bcd {
         return
     elif [[ "$curr" == "-"* ]]; then
         compopt +o nospace
-        COMPREPLY=($(compgen -W "- -L -P -e -@ --help -b" -- "$curr") )
+        COMPREPLY=($(compgen -W "- -L -P -e -@ --help -h -b" -- "$curr") )
         return
     elif [[ "$curr" && ${CD_BOOKMARKS["$curr"]} ]]; then
         compopt +o nospace

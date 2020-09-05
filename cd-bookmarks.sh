@@ -121,6 +121,9 @@ function _bcd {
     # Add in the bookmarks
     if [[ "$CD_INCLUDEBOOKMARKS" == "1" ]]; then
         COMPREPLY+=($(compgen -W "${BOOKMARK_INDEX}" -- "$curr") )
+        if [[ ${#COMPREPLY[@]} -eq 1 && ${CD_BOOKMARKS[${COMPREPLY[0]}]} ]]; then
+            compopt +onospace
+        fi
     fi
 }
 

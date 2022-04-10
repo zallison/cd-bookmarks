@@ -7,31 +7,6 @@
 #
 # This (ab)uses the CDPATH functionality of bash to add bookmark functionality.
 
-function _bcd_help {
-    \cd --help
-    echo
-    echo '    ----------------
-    CD-BOOKMARKS.sh:
-    ----------------
-    This script has added the ability to use bookmarks to cd.
-    Examples:
-        cd -b  # list bookmarks
-        cd [-b] bookmark # cd to a bookmark
-        cd [-b] bookmark subdir # cd to a directory below a bookmark
-
-    Set your bookmarks, in .bashrc or elsewhere:
-        CD_BOOKMARKS["name"]="/path/to/bookmark"
-        CD_BOOKMARKS["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
-        cd-bookmarks-update
-
-    After updating bookmarks run `cd-bookmarks-update`
-
-    The default "bookmark" is ".", but you can change that if you want.
-        CD_BOOKMARKS["default"]=".:${HOME}/projects/"'
-
-}
-
-
 declare -A CD_BOOKMARKS
 declare CD_INCLUDEBOOKMARKS=0 # include bookmarks in tab completion for directories
 
@@ -43,45 +18,52 @@ complete -F _bcd cd
 
 function bcd {
     local CDOPTS
+    local bookmark
+    local directory
 
-    while [[ "$1" == "-"[^b]* ]]; do
-        if [[ "$1" == "--help" || "$1" == "-h" ]]; then
-            _bcd_help
-            return
-        fi
-        CDOPTS+=" $1"
-        shift
+    while [[ "$1" ]]; do
+        case "$1" in
+            "-") \cd ${OLDPWD}; return;;
+            "-b") if [[ $2 ]]; then
+                      bookmark=$2; shift;
+                  else
+                      _bcd_show_list; return 0
+                  fi;;
+            "--help") _bcd_help; return;;
+            -*) CDOPTS+=" $1";;
+            *) if [[ -z "$directory" ]]; then
+                   directory=$1;
+               elif [[ -z "$bookmark" ]]; then
+                   bookmark=$directory
+                   directory=$1
+               else
+                   echo "Too many arguments"
+                   return 1
+               fi;;
+        esac
+        shift;
     done
 
-    if [[ -z "$1" ]]; then
-        # No arguments
+    local tmpcdpath=${CD_BOOKMARKS[${bookmark:-default}]}
+    ## Determine path to cd to
+    if [[ -z "$bookmark" && -z "$directory" ]]; then
         \cd ${CDOPTS}
-        return
-    elif [[ "$1" == "-b" && -z "$2" ]]; then
-        # only -b
-        _bcd_show_list
-        return
+    elif [[ -n "$bookmark" && -z "$directory" ]]; then
+        # Bookmark, but no directory,
+        if [[ -n "$bookmark" && -z "${CD_BOOKMARKS[$bookmark]}" ]]; then
+            echo "Unknown bookmark: $bookmark"; return 1;
+        fi
+        directory="${CD_BOOKMARKS[$bookmark]}"
+        bookmark=default
+    elif [[ -z "$bookmark" && -n $directory && -n "${CD_BOOKMARKS[$directory]}" ]]; then
+        directory="${CD_BOOKMARKS[$directory]}"
+        tmpcdpath=
+    elif [[ -n "$bookmark" && -d "${CD_BOOKMARKS[$directory]}" ]]; then
+        directory="${CD_BOOKMARKS[$directory]}"
+        tmpcdpath=
     fi
 
-    # Pop off the -b, leaving a directory and maybe a bookmark
-    if [[ "$1" == "-b" ]]; then shift; fi
-
-    if [[ ! -z "$3" ]]; then
-        echo "Too many arguments"
-        return 1
-    elif [[ ! -z "$2" && -z "${CD_BOOKMARKS[$1]}"  ]]; then
-        echo "Unknown bookmark: $1"
-        return 1
-    elif [[ ! -z "$2" ]]; then
-        # Two args: bookmark subdir
-        CDPATH=${CD_BOOKMARKS[$1]} \cd ${CDOPTS} "$2"
-    elif [[ ! -z $1 && ! -d "$1" && ! -z "${CD_BOOKMARKS[$1]}" ]]; then
-        # One arg that is a bookmark
-        \cd ${CDOPTS} ${CD_BOOKMARKS[$1]%%:*}
-    else
-        # One arg  use the default search path.
-        CDPATH=${CD_BOOKMARKS["default"]} \cd ${CDOPTS} "$1"
-    fi
+    CDPATH="${tmpcdpath}" \cd ${CDOPTS} "$directory" || return 1
 }
 
 
@@ -93,23 +75,25 @@ function _bcd {
     # Unless we see a bookmark, we're using the default path list
     TMPCDPATH=${CD_BOOKMARKS["default"]}
 
-    # Add spaces to the end of words
+    # No space for completion (for directories and subdirectories)
     compopt -o nospace
 
-    if [[ ! -z "$prev" && "$prev" != "bcd" && "$prev" != "cd" ]]; then
-        TMP=${CD_BOOKMARKS["$prev"]}
-        if [[ ! -z "$TMP" ]]; then
-            TMPCDPATH=${CD_BOOKMARKS[$prev]}
+    if [[ -n "$prev" && "$prev" != "bcd" && "$prev" != "cd" ]]; then
+        TMP="${CD_BOOKMARKS["$prev"]}"
+        if [[ -n "$TMP" ]]; then
+            TMPCDPATH="$TMP"
         fi
     fi
 
     if [[ "$prev" == "-b" ]]; then
+        # Return bookmarks
         compopt +o nospace
         COMPREPLY=($(compgen -W "${BOOKMARK_INDEX}" -- "$curr") )
         return
     elif [[ "$curr" == "-"* ]]; then
+        # Return options
         compopt +o nospace
-        COMPREPLY=($(compgen -W "- -L -P -e -@ --help -h -b" -- "$curr") )
+        COMPREPLY=($(compgen -W "- -L -P -e -@ --help -b" -- "$curr") )
         return
     elif [[ "$curr" && ${CD_BOOKMARKS["$curr"]} ]]; then
         compopt +o nospace
@@ -121,9 +105,18 @@ function _bcd {
     CDPATH=$TMPCDPATH _bcd_comp "$*"
 
     # Add in the bookmarks
-    if [[ "$CD_INCLUDEBOOKMARKS" == "1" ]]; then
+    if [[ "$CD_INCLUDEBOOKMARKS" ]]; then
+        if [[ "$CD_INCLUDEBOOKMARKS" == "2" ]]; then
+            compopt +onospace
+            if [[ "z$prev" == "zcd" || "z$prev" == "zbcd" ]]; then
+                COMPREPLY=()
+            fi
+        fi
+
         COMPREPLY+=($(compgen -W "${BOOKMARK_INDEX}" -- "$curr") )
-        if [[ ${#COMPREPLY[@]} -eq 1 && ${CD_BOOKMARKS[${COMPREPLY[0]}]} ]]; then
+
+        if [[ ${#COMPREPLY[@]} -eq 1 && "${CD_BOOKMARKS[${COMPREPLY[0]}]}" ]]; then
+            # Add a space after completing a bookmark
             compopt +onospace
         fi
     fi
@@ -132,7 +125,7 @@ function _bcd {
 # Based on the built in _cd
 function _bcd_comp {
     local cur prev i j k
-    _init_completion || return;
+    _init_completion || return 1;
     local IFS='
 '
     compopt -o filenames -o nospace;
@@ -170,9 +163,30 @@ function _bcd_comp {
     return
 }
 
+function _bcd_help {
+    \cd --help
+    echo
+    echo '    CD-BOOKMARKS.sh:
+    This script has added the ability to use bookmarks to cd.
+    Examples:
+        cd -b  # list bookmarks
+        cd [-b] bookmark # cd to a bookmark
+        cd [-b] bookmark subdir # cd to a directory below a bookmark
+
+    Set your bookmarks, in .bashrc or elsewhere:
+        CD_BOOKMARKS["name"]="/path/to/bookmark"
+        CD_BOOKMARKS["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
+        cd-bookmarks  -update
+
+    After updating bookmarks run `cd-bookmarks-update`
+
+    The default "bookmark" is ".", but you can change that if you want.
+        CD_BOOKMARKS["default"]=".:${HOME}/projects/"'
+}
+
 function _bcd_show_list {
     function _add_x_spaces {
-        for x in $(seq 1 $(( $1 )) ); do echo -n " "; done
+        for _ in $(seq 1 $(( $1 )) ); do echo -n " "; done
     }
     echo "Bookmarks:"
     local maxlength tmp="[default]"

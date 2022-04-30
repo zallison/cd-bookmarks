@@ -7,17 +7,17 @@
 #
 # This (ab)uses the CDPATH functionality of bash to add bookmark functionality.
 
-declare -A CD_BOOKMARKS
-declare CD_INCLUDEBOOKMARKS=0 # include bookmarks in tab completion for directories
+declare -A cd_bookmarks
+declare cd_includebookmarks=0 # include bookmarks in tab completion for directories
 
-CD_BOOKMARKS["default"]="."
+cd_bookmarks["default"]="."
 
 # Replace "cd" with "bcd"
 alias cd=bcd
 complete -F _bcd cd
 
 function bcd {
-    local CDOPTS
+    local cdopts
     local bookmark
     local directory
 
@@ -30,7 +30,7 @@ function bcd {
                       _bcd_show_list; return 0
                   fi;;
             "--help") _bcd_help; return;;
-            -*) CDOPTS+=" $1";;
+            -*) cdopts+=" $1";;
             *) if [[ -z "$directory" ]]; then
                    directory=$1;
                elif [[ -z "$bookmark" ]]; then
@@ -44,78 +44,78 @@ function bcd {
         shift;
     done
 
-    local tmpcdpath=${CD_BOOKMARKS[${bookmark:-default}]}
+    local tmpcdpath=${cd_bookmarks[${bookmark:-default}]}
     ## Determine path to cd to
     if [[ -z "$bookmark" && -z "$directory" ]]; then
-        \cd ${CDOPTS}
+        \cd ${cdopts}
     elif [[ -n "$bookmark" && -z "$directory" ]]; then
         # Bookmark, but no directory,
-        if [[ -n "$bookmark" && -z "${CD_BOOKMARKS[$bookmark]}" ]]; then
+        if [[ -n "$bookmark" && -z "${cd_bookmarks[$bookmark]}" ]]; then
             echo "Unknown bookmark: $bookmark"; return 1;
         fi
-        directory="${CD_BOOKMARKS[$bookmark]}"
+        directory="${cd_bookmarks[$bookmark]}"
         bookmark=default
-    elif [[ -z "$bookmark" && -n $directory && -n "${CD_BOOKMARKS[$directory]}" ]]; then
-        directory="${CD_BOOKMARKS[$directory]}"
+    elif [[ -z "$bookmark" && -n $directory && -n "${cd_bookmarks[$directory]}" ]]; then
+        directory="${cd_bookmarks[$directory]}"
         tmpcdpath=
-    elif [[ -n "$bookmark" && -d "${CD_BOOKMARKS[$directory]}" ]]; then
-        directory="${CD_BOOKMARKS[$directory]}"
+    elif [[ -n "$bookmark" && -d "${cd_bookmarks[$directory]}" ]]; then
+        directory="${cd_bookmarks[$directory]}"
         tmpcdpath=
     fi
 
-    CDPATH="${tmpcdpath}" \cd ${CDOPTS} "$directory" || return 1
+    CDPATH="${tmpcdpath}" \cd ${cdopts} "$directory" || return 1
 }
 
 
 complete -F _bcd bcd
 function _bcd {
-    local curr prev words cword TMPCDPATH TMP
+    local curr prev words cword tmpcdpath TMP
     curr="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     # Unless we see a bookmark, we're using the default path list
-    TMPCDPATH=${CD_BOOKMARKS["default"]}
+    tmpcdpath=${cd_bookmarks["default"]}
 
     # No space for completion (for directories and subdirectories)
     compopt -o nospace
 
     if [[ -n "$prev" && "$prev" != "bcd" && "$prev" != "cd" ]]; then
-        TMP="${CD_BOOKMARKS["$prev"]}"
+        TMP="${cd_bookmarks["$prev"]}"
         if [[ -n "$TMP" ]]; then
-            TMPCDPATH="$TMP"
+            tmpcdpath="$TMP"
         fi
     fi
 
     if [[ "$prev" == "-b" ]]; then
         # Return bookmarks
         compopt +o nospace
-        COMPREPLY=($(compgen -W "${BOOKMARK_INDEX}" -- "$curr") )
+        COMPREPLY=($(compgen -W "${bookmark_index}" -- "$curr") )
         return
     elif [[ "$curr" == "-"* ]]; then
         # Return options
         compopt +o nospace
         COMPREPLY=($(compgen -W "- -L -P -e -@ --help -b" -- "$curr") )
         return
-    elif [[ "$curr" && ${CD_BOOKMARKS["$curr"]} ]]; then
+    elif [[ "$curr" && ${cd_bookmarks["$curr"]} ]]; then
         compopt +o nospace
         COMPREPLY=($curr)
         return
     fi
 
     # "Normal" cd completion with CDPATH set
-    CDPATH=$TMPCDPATH _bcd_comp "$*"
+    CDPATH=$tmpcdpath _bcd_comp "$*"
 
     # Add in the bookmarks
-    if [[ "$CD_INCLUDEBOOKMARKS" ]]; then
-        if [[ "$CD_INCLUDEBOOKMARKS" == "2" ]]; then
+    if [[ "$cd_includebookmarks" ]]; then
+        if [[ "$cd_includebookmarks" == "2" ]]; then
             compopt +onospace
             if [[ "z$prev" == "zcd" || "z$prev" == "zbcd" ]]; then
                 COMPREPLY=()
             fi
         fi
 
-        COMPREPLY+=($(compgen -W "${BOOKMARK_INDEX}" -- "$curr") )
+        COMPREPLY+=($(compgen -W "${bookmark_index}" -- "$curr") )
 
-        if [[ ${#COMPREPLY[@]} -eq 1 && "${CD_BOOKMARKS[${COMPREPLY[0]}]}" ]]; then
+        if [[ ${#COMPREPLY[@]} -eq 1 && "${cd_bookmarks[${COMPREPLY[0]}]}" ]]; then
             # Add a space after completing a bookmark
             compopt +onospace
         fi
@@ -174,14 +174,14 @@ function _bcd_help {
         cd [-b] bookmark subdir # cd to a directory below a bookmark
 
     Set your bookmarks, in .bashrc or elsewhere:
-        CD_BOOKMARKS["name"]="/path/to/bookmark"
-        CD_BOOKMARKS["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
+        cd_bookmarks["name"]="/path/to/bookmark"
+        cd_bookmarks["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
         cd-bookmarks  -update
 
     After updating bookmarks run `cd-bookmarks-update`
 
     The default "bookmark" is ".", but you can change that if you want.
-        CD_BOOKMARKS["default"]=".:${HOME}/projects/"'
+        cd_bookmarks["default"]=".:${HOME}/projects/"'
 }
 
 function _bcd_show_list {
@@ -191,23 +191,23 @@ function _bcd_show_list {
     echo "Bookmarks:"
     local maxlength tmp="[default]"
     maxlength=${#tmp}
-    for i in "${!CD_BOOKMARKS[@]}"; do
+    for i in "${!cd_bookmarks[@]}"; do
         [[ ${#i} -gt ${maxlength} ]] && maxlength=${#i}
     done
-    echo "  [default] -> ${CD_BOOKMARKS[default]}"
-    for i in "${!CD_BOOKMARKS[@]}"; do
+    echo "  [default] -> ${cd_bookmarks[default]}"
+    for i in "${!cd_bookmarks[@]}"; do
         if [[ $i != "default" ]]; then
             echo -n "  $i "
             _add_x_spaces $(( ${maxlength} - ${#i} ))
-            echo -e "-> ${CD_BOOKMARKS[$i]}"
+            echo -e "-> ${cd_bookmarks[$i]}"
         fi
     done
 }
 
 function cd-bookmarks-update() {
-    for i in "${!CD_BOOKMARKS[@]}"; do
+    for i in "${!cd_bookmarks[@]}"; do
         if [[ $i != "default" ]]; then
-            BOOKMARK_INDEX="$i ${BOOKMARK_INDEX}"
+            bookmark_index="$i ${bookmark_index}"
         fi
     done
 }

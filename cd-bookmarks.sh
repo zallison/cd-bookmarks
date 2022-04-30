@@ -9,14 +9,15 @@
 
 declare -A cd_bookmarks
 declare cd_includebookmarks=0 # include bookmarks in tab completion for directories
+declare cd_usepushd=1;
 
 cd_bookmarks["default"]="."
 
-# Replace "cd" with "bcd"
-alias cd=bcd
-complete -F _bcd cd
+# Replace "cd" with "cdb"
+alias cd=cdb
+complete -F _cdb cd
 
-function bcd {
+function cdb {
     local cdopts
     local bookmark
     local directory
@@ -27,9 +28,10 @@ function bcd {
             "-b") if [[ $2 ]]; then
                       bookmark=$2; shift;
                   else
-                      _bcd_show_list; return 0
+                      _cdb_show_list; return 0
                   fi;;
-            "--help") _bcd_help; return;;
+            "--help") _cdb_help; return;;
+            "-p") popd; return;;
             -*) cdopts+=" $1";;
             *) if [[ -z "$directory" ]]; then
                    directory=$1;
@@ -62,13 +64,17 @@ function bcd {
         directory="${cd_bookmarks[$directory]}"
         tmpcdpath=
     fi
-
+    if [[ ${cd_usepushd} ]]; then
+        pushd . 2>&1 > /dev/null
+    fi
     CDPATH="${tmpcdpath}" \cd ${cdopts} "$directory" || return 1
+
+
 }
 
 
-complete -F _bcd bcd
-function _bcd {
+complete -F _cdb cdb
+function _cdb {
     local curr prev words cword tmpcdpath TMP
     curr="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -78,7 +84,7 @@ function _bcd {
     # No space for completion (for directories and subdirectories)
     compopt -o nospace
 
-    if [[ -n "$prev" && "$prev" != "bcd" && "$prev" != "cd" ]]; then
+    if [[ -n "$prev" && "$prev" != "cdb" && "$prev" != "cd" ]]; then
         TMP="${cd_bookmarks["$prev"]}"
         if [[ -n "$TMP" ]]; then
             tmpcdpath="$TMP"
@@ -102,13 +108,13 @@ function _bcd {
     fi
 
     # "Normal" cd completion with CDPATH set
-    CDPATH=$tmpcdpath _bcd_comp "$*"
+    CDPATH=$tmpcdpath _cdb_comp "$*"
 
     # Add in the bookmarks
     if [[ "$cd_includebookmarks" ]]; then
         if [[ "$cd_includebookmarks" == "2" ]]; then
             compopt +onospace
-            if [[ "z$prev" == "zcd" || "z$prev" == "zbcd" ]]; then
+            if [[ "z$prev" == "zcd" || "z$prev" == "zcdb" ]]; then
                 COMPREPLY=()
             fi
         fi
@@ -123,7 +129,7 @@ function _bcd {
 }
 
 # Based on the built in _cd
-function _bcd_comp {
+function _cdb_comp {
     local cur prev i j k
     _init_completion || return 1;
     local IFS='
@@ -163,7 +169,7 @@ function _bcd_comp {
     return
 }
 
-function _bcd_help {
+function _cdb_help {
     \cd --help
     echo
     echo '    CD-BOOKMARKS.sh:
@@ -181,10 +187,21 @@ function _bcd_help {
     After updating bookmarks run `cd-bookmarks-update`
 
     The default "bookmark" is ".", but you can change that if you want.
-        cd_bookmarks["default"]=".:${HOME}/projects/"'
+        cd_bookmarks["default"]=".:${HOME}/projects/
+
+    You may optionally have it use pushd and add "cd -p" to call popd. These
+    let you keep a history of the paths you have been in and return to them.
+
+    e.g.:
+      ~$ cd mydir
+      ~/mydir$ cd /usr/mydir2
+      /usr/mydir2$ cd -p
+      ~/mydir$ cd -p
+      ~$ 
+"'
 }
 
-function _bcd_show_list {
+function _cdb_show_list {
     function _add_x_spaces {
         for _ in $(seq 1 $(( $1 )) ); do echo -n " "; done
     }

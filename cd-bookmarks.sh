@@ -8,6 +8,47 @@
 # This (ab)uses the CDPATH functionality of bash to add bookmark functionality,
 # optionally enabling pushd when changing directories.
 
+function _cdb_help {
+    \cd --help
+    echo
+    echo '    CD-BOOKMARKS.sh:
+    This script has added the ability to use bookmarks to cd.
+    Examples:
+        cd -b  # list bookmarks
+        cd [-b] bookmark # cd to a bookmark
+        cd [-b] bookmark subdir # cd to a directory below a bookmark
+
+    Set your bookmarks, in .bashrc or elsewhere:
+        source "path/to/cd-bookmarks.sh"
+        cd_includebookmarks=1 # [optional] include bookmarks in tab completion
+        cd_usepushd=1 # [optional] use pushd so we can popd (or cd -p) back
+        cd_bookmarks["name"]="/path/to/bookmark" # add a bookmark
+        cd_bookmarks["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
+        cd -update
+
+    After updating bookmarks run `cd -update`
+
+    The default "bookmark" is ".", but you can change that if you want.
+        cd_bookmarks["default"]=".:${HOME}/projects/
+
+    You may optionally have it use pushd and add "cd -p" to call popd. These
+    let you keep a history of the paths you have been in and return to them.
+
+        cd -p # run "popd"
+        cd -v # run "dirs -v"
+        cd -c # run "dirs -c"
+
+    e.g.:
+      ~$ cd mydir
+      ~/mydir$ cd /usr/mydir2
+      /usr/mydir2$ cd -p
+      ~/mydir$ cd -p
+      ~$
+"'
+}
+
+
+
 ## include bookmarks in tab completion for directories
 declare cd_includebookmarks=0
 
@@ -45,6 +86,7 @@ function cdb {
                       _cdb_show_list; return 0
                   fi;;
             "--help") _cdb_help; return;;
+            "-update") _cdb_update; return;;
             -[A-Za-z]) cdopts+=" $1";;
             *) if [[ -z "$directory" ]]; then
                    directory=$1;
@@ -89,6 +131,8 @@ function cdb {
 
     if [[ "$directory" == "-" ]]; then
         command cd ${cdopts} - || return 1
+    elif [[ -z "$bookmark" && -z "$directory" ]]; then
+        command cd ${cdopts} || return 1
     else
         CDPATH="${tmpcdpath}" command cd ${cdopts} "$directory" || return 1
     fi
@@ -191,44 +235,6 @@ function _cdb_comp {
     return
 }
 
-function _cdb_help {
-    \cd --help
-    echo
-    echo '    CD-BOOKMARKS.sh:
-    This script has added the ability to use bookmarks to cd.
-    Examples:
-        cd -b  # list bookmarks
-        cd [-b] bookmark # cd to a bookmark
-        cd [-b] bookmark subdir # cd to a directory below a bookmark
-
-    Set your bookmarks, in .bashrc or elsewhere:
-        cd_includebookmarks=1 # include bookmarks in tab completion
-        cd_usepushd=1 # use pushd so we can popd (or cd -p) back
-        cd_bookmarks["name"]="/path/to/bookmark"
-        cd_bookmarks["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
-        cd_bookmarks -update
-
-    After updating bookmarks run `cd-bookmarks-update`
-
-    The default "bookmark" is ".", but you can change that if you want.
-        cd_bookmarks["default"]=".:${HOME}/projects/
-
-    You may optionally have it use pushd and add "cd -p" to call popd. These
-    let you keep a history of the paths you have been in and return to them.
-
-        cd -p # run "popd"
-        cd -v # run "dirs -v"
-        cd -c # run "dirs -c"
-
-    e.g.:
-      ~$ cd mydir
-      ~/mydir$ cd /usr/mydir2
-      /usr/mydir2$ cd -p
-      ~/mydir$ cd -p
-      ~$ 
-"'
-}
-
 function _cdb_show_list {
     function _add_x_spaces {
         for _ in $(seq 1 $(( $1 )) ); do echo -n " "; done
@@ -249,7 +255,7 @@ function _cdb_show_list {
     done
 }
 
-function cd-bookmarks-update() {
+function _cdb_update() {
     for i in "${!cd_bookmarks[@]}"; do
         if [[ $i != "default" ]]; then
             bookmark_index="$i ${bookmark_index}"

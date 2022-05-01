@@ -37,15 +37,15 @@ function cdb {
 
     while [[ "$1" ]]; do
         case "$1" in
-            "-") \cd ${OLDPWD}; return;;
+            "-p") popd; return;;
+            "-v") dirs -v; return;;
             "-b") if [[ $2 ]]; then
                       bookmark=$2; shift;
                   else
                       _cdb_show_list; return 0
                   fi;;
             "--help") _cdb_help; return;;
-            "-p") popd; return;;
-            -*) cdopts+=" $1";;
+            -[A-Za-z]) cdopts+=" $1";;
             *) if [[ -z "$directory" ]]; then
                    directory=$1;
                elif [[ -z "$bookmark" ]]; then
@@ -59,10 +59,10 @@ function cdb {
         shift;
     done
 
-    local tmpcdpath=${cd_bookmarks[${bookmark:-default}]}
     ## Determine path to cd to
+    local tmpcdpath=${cd_bookmarks[${bookmark:-default}]}
     if [[ -z "$bookmark" && -z "$directory" ]]; then
-        \cd ${cdopts}
+        :
     elif [[ -n "$bookmark" && -z "$directory" ]]; then
         # Bookmark, but no directory,
         if [[ -n "$bookmark" && -z "${cd_bookmarks[$bookmark]}" ]]; then
@@ -82,11 +82,16 @@ function cdb {
     # Q: why not just pushd instead of cd?
     # A: to respect all the flags to cd like -L or -P
     if [[ ${cd_usepushd} ]]; then
-        pushd . 2>&1 > /dev/null
+        if [[ "$OLDPWD" != "$PWD" && "$PWD" != "$directory" ]]; then
+            pushd . 2>&1 > /dev/null
+        fi
     fi
-    CDPATH="${tmpcdpath}" \cd ${cdopts} "$directory" || return 1
 
-
+    if [[ "$directory" == "-" ]]; then
+        command cd ${cdopts} - || return 1
+    else
+        CDPATH="${tmpcdpath}" command cd ${cdopts} "$directory" || return 1
+    fi
 }
 
 
@@ -199,7 +204,7 @@ function _cdb_help {
     Set your bookmarks, in .bashrc or elsewhere:
         cd_bookmarks["name"]="/path/to/bookmark"
         cd_bookmarks["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
-        cd-bookmarks  -update
+        cd-bookmarks -update
 
     After updating bookmarks run `cd-bookmarks-update`
 

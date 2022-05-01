@@ -1,18 +1,31 @@
 #!/bin/bash
-#
-# Copyright 2020, Zack Allison <zack@zackallison.com>
+
+# Copyright 2022, Zack Allison <zack@zackallison.com>
 # License: MIT License
 #
 # cd-bookmarks.sh - bookmarks with cd
 #
-# This (ab)uses the CDPATH functionality of bash to add bookmark functionality.
+# This (ab)uses the CDPATH functionality of bash to add bookmark functionality,
+# optionally enabling pushd when changing directories.
 
-declare -A cd_bookmarks
-declare cd_includebookmarks=0 # include bookmarks in tab completion for directories
+## include bookmarks in tab completion for directories
+declare cd_includebookmarks=0
+
+## enable pushd when changing directories
+# Q: why not pushd the target dir like a normal person?
+# A: because then the rest of the cd flags like -L or -P aren't respected
 declare cd_usepushd=1;
 
+# cd [...] will add PWD with pushd before changing direction
+# cd -d will run dirs and format it so it's easy to read.
+# cd -p will run popd
+
+## Create default bookmark
+# set CDPATH to "."
+declare -A cd_bookmarks
 cd_bookmarks["default"]="."
 
+## Alias and complete
 # Replace "cd" with "cdb"
 alias cd=cdb
 complete -F _cdb cd
@@ -64,6 +77,10 @@ function cdb {
         directory="${cd_bookmarks[$directory]}"
         tmpcdpath=
     fi
+
+    ## if `pushd` is enabled add PWD when changing directories.
+    # Q: why not just pushd instead of cd?
+    # A: to respect all the flags to cd like -L or -P
     if [[ ${cd_usepushd} ]]; then
         pushd . 2>&1 > /dev/null
     fi
@@ -191,6 +208,10 @@ function _cdb_help {
 
     You may optionally have it use pushd and add "cd -p" to call popd. These
     let you keep a history of the paths you have been in and return to them.
+
+        cd -p # run "popd"
+        cd -v # run "dirs -v"
+        cd -c # run "dirs -c"
 
     e.g.:
       ~$ cd mydir

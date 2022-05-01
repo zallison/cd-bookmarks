@@ -202,9 +202,11 @@ function _cdb_help {
         cd [-b] bookmark subdir # cd to a directory below a bookmark
 
     Set your bookmarks, in .bashrc or elsewhere:
+        cd_includebookmarks=1 # include bookmarks in tab completion
+        cd_usepushd=1 # use pushd so we can popd (or cd -p) back
         cd_bookmarks["name"]="/path/to/bookmark"
         cd_bookmarks["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
-        cd-bookmarks -update
+        cd_bookmarks -update
 
     After updating bookmarks run `cd-bookmarks-update`
 

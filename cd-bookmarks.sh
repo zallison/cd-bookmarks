@@ -62,7 +62,7 @@ declare cd_includebookmarks=0
 declare cd_usepushd=1;
 
 # cd [...] will add PWD with pushd before changing direction
-# cd -d will run dirs and format it so it's easy to read.
+# cd -v will run dirs -v
 # cd -p will run popd
 
 ## Create default bookmark

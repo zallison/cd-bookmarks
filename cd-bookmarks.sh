@@ -128,9 +128,9 @@ function cdb {
     # Q: why not just pushd instead of cd?
     # A: to respect all the flags to cd like -L or -P
     if [[ ${cd_usepushd} ]]; then
-        if [[ "$OLDPWD" != "$PWD" && "$PWD" != "$directory" ]]; then
+       if [[ "$OLDPWD" != "$PWD" ]]; then
             pushd . 2>&1 > /dev/null
-        fi
+       fi
     fi
 
     if [[ "$directory" == "-" ]]; then

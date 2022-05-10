@@ -28,9 +28,9 @@ function _cdb_help {
         cd_usepushd=1 # [optional] use pushd so we can popd (or cd -p) back
         cd_bookmarks["name"]="/path/to/bookmark" # add a bookmark
         cd_bookmarks["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
-        cd -update # re-index the bookmarks
+        cd --update # re-index the bookmarks
 
-    After updating bookmarks run `cd -update`
+    After updating bookmarks run `cd --update`
 
     The default "bookmark" is ".", but you can change that if you want.
         cd_bookmarks["default"]=".:${HOME}/projects/
@@ -90,7 +90,7 @@ function cdb {
                       _cdb_show_list; return 0
                   fi;;
             "--help") _cdb_help; return;;
-            "-update") _cdb_update; return;;
+            "--update") _cdb_update; return;;
             -[A-Za-z]) cdopts+=" $1";;
             *) if [[ -z "$directory" ]]; then
                    directory=$1;

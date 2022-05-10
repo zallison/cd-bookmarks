@@ -54,7 +54,7 @@ And set your bookmarks:
 	cd_bookmarks[local_tmp]=~/.local/tmp
 
 	# Update the index after changing bookmarks
-    cd -update
+    cd --update
 
 The default bookmark" is `.`, but you can change that if you want.
 

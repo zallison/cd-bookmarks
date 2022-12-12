@@ -67,8 +67,10 @@ declare cd_usepushd=1;
 
 ## Create default bookmark
 # set CDPATH to "."
-declare -A cd_bookmarks
-cd_bookmarks["default"]="."
+if [[ -z ${cd_bookmarks} ]]; then
+    declare -A cd_bookmarks
+    cd_bookmarks["default"]="."
+fi
 
 ## Alias and complete
 # Replace "cd" with "cdb"

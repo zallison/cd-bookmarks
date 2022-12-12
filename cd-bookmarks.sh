@@ -126,6 +126,18 @@ function cdb {
         tmpcdpath=
     fi
 
+    if [[ -z "$bookmark" && ! -z "$directory" ]]; then
+        echo "$directory"
+        first_dir=${directory%/*}
+        first_dir=${first_dir%%/*}
+        if [[ -n "$first_dir" && ! -z ${cd_bookmarks[${first_dir}]} ]]; then
+            bookmark=${first_dir}
+            directory=${directory#*/}
+            tmpcdpath=${cd_bookmarks[$bookmark]}
+        fi
+    fi
+    ###############
+
     ## if `pushd` is enabled add PWD when changing directories.
     # Q: why not just pushd instead of cd?
     # A: to respect all the flags to cd like -L or -P

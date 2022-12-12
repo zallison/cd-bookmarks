@@ -150,13 +150,14 @@ function _cdb {
     local curr prev words cword tmpcdpath TMP
     curr="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
+    word_count=${#COMP_WORDS[@]}
     # Unless we see a bookmark, we're using the default path list
     tmpcdpath=${cd_bookmarks["default"]}
 
     # No space for completion (for directories and subdirectories)
     compopt -o nospace
 
-    if [[ -n "$prev" && "$prev" != "cdb" && "$prev" != "cd" ]]; then
+    if [[ -n "$prev" && ${word_count} > 1 ]]; then
         TMP="${cd_bookmarks["$prev"]}"
         if [[ -n "$TMP" ]]; then
             tmpcdpath="$TMP"
@@ -183,10 +184,10 @@ function _cdb {
     CDPATH=$tmpcdpath _cdb_comp "$*"
 
     # Add in the bookmarks
-    if [[ "$cd_includebookmarks" ]]; then
+    if [[ "$cd_includebookmarks" && "${word_count}" == 2 ]]; then
         if [[ "$cd_includebookmarks" == "2" ]]; then
             compopt +onospace
-            if [[ "z$prev" == "zcd" || "z$prev" == "zcdb" ]]; then
+            if [[ "${word_count}" > 1 ]]; then
                 COMPREPLY=()
             fi
         fi

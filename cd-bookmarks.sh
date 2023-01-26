@@ -111,6 +111,9 @@ function cdb {
     local tmpcdpath=${cd_bookmarks[${bookmark:-default}]}
     if [[ -z "$bookmark" && -z "$directory" ]]; then
         :
+    elif [[ -z "$bookmark" &&  -n "$directory" && -d "$directory" ]]; then
+        # A directory, no bookmark, and the directory exists as a full path
+        tmpcdpath=.
     elif [[ -n "$bookmark" && -z "$directory" ]]; then
         # Bookmark, but no directory,
         if [[ -n "$bookmark" && -z "${cd_bookmarks[$bookmark]}" ]]; then
@@ -118,7 +121,8 @@ function cdb {
         fi
         directory="${cd_bookmarks[$bookmark]}"
         bookmark=default
-    elif [[ -z "$bookmark" && -n $directory && -n "${cd_bookmarks[$directory]}" ]]; then
+    elif [[ -z "$bookmark" && -n "$directory" && -n "${cd_bookmarks[$directory]}" ]]; then
+        # "Directory" which is a bookmark
         directory="${cd_bookmarks[$directory]}"
         tmpcdpath=
     elif [[ -n "$bookmark" && -d "${cd_bookmarks[$directory]}" ]]; then
@@ -127,7 +131,6 @@ function cdb {
     fi
 
     if [[ -z "$bookmark" && ! -z "$directory" ]]; then
-        echo "$directory"
         first_dir=${directory%/*}
         first_dir=${first_dir%%/*}
         if [[ -n "$first_dir" && ! -z ${cd_bookmarks[${first_dir}]} ]]; then

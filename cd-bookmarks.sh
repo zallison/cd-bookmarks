@@ -7,6 +7,69 @@
 #
 # This (ab)uses the CDPATH functionality of bash to add bookmark functionality,
 # optionally enabling pushd when changing directories.
+CD_BOOKMARK_FILE=${CD_BOOKMARK_FILE:-"~/.cd_bookmarks"}
+
+cd_includebookmarks=1
+cd_usepushd=1
+
+[[ -f "${CD_BOOKMARK_FILE}" ]] && source "${CD_BOOKMARK_FILE}"
+
+bookmark_cd() {
+    cd_bookmarks_temporary="mark"
+    if [[ $1 == "-s" || $1 == "--save" ]]; then
+        save=1
+        shift
+    fi
+
+    bookmark=${1:-mark}
+    dir=$2
+
+    # Validate
+    [[ "$dir" ]] || dir=$(pwd)
+
+    # Not a directory
+    if [[ ! -d "$dir" ]]; then
+        echo "$dir is not a directory" > /dev/stderr
+        return -1
+    fi
+
+    # Set the bookmark for the session
+    cd_bookmarks["$bookmark"]="$dir"
+
+    if [[ "$save" == 1 ]]; then
+
+        # Invalid bookmark name
+        if [[ ${bookmark} == "${cd_bookmarks_temporary}" ]]; then
+            echo  "error: Can't save a bookmark to the default slot [${cd_bookmarks_temporary}" > /dev/stderr
+            echo "        \$cd_bookmarks_temporary is set at the top of this function"
+            return -1
+        fi
+
+        # Create bookmark file
+        if [[ ! -f "${CD_BOOKMARK_FILE}" ]]; then
+            > "${CD_BOOKMARK_FILE}" << EOF
+## CD BOOKMARKS
+## END OF BOOKMARKS
+## UPDATE
+cd --update
+## EOF
+
+EOF
+        fi
+
+        NEW='cd_bookmarks["$bookmark"]="'$dir'"'
+        echo Writing "$NEW" to $CD_BOOKMARK_FILE
+        if [[ $(awk "/.. END OF BOOKMARKS$/{print \"$NEW\"} //{print} " < "$CD_BOOKMARK_FILE" > "${CD_BOOKMARK_FILE}.tmp") ]]; then
+            mv "${CD_BOOKMARK_FILE}.tmp" "${CD_BOOKMARK_FILE}"
+        else
+            echo Error, not clobing old ${CD_BOOKMARK_FILE}
+        fi
+    fi
+
+    cd --update
+}
+
+
 
 function _cdb_help {
     \cd --help

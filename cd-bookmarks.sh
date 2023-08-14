@@ -170,6 +170,10 @@ function cdb {
         shift;
     done
 
+    # Remove trailing slashes to check for hash
+    # e.g.: my_bookmark/ -> my_bookmark
+    directory=${directory%%/}
+
     ## Determine path to cd to
     local tmpcdpath=${cd_bookmarks[${bookmark:-default}]}
     if [[ -z "$bookmark" && -z "$directory" ]]; then

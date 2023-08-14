@@ -99,6 +99,8 @@ function cdb {
         case "$1" in
             "-a") shift;add_cd_bookmark $*; return;;
             "-p") popd; return;;
+            "-l") dirs -v; return;;
+            "-h") dirs -v; return;;
             "-v") dirs -v; return;;
             "-b") if [[ $2 ]]; then
                       bookmark=$2; shift;

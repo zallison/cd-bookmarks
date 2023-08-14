@@ -41,7 +41,7 @@ bookmark_cd() {
         # Invalid bookmark name
         if [[ ${bookmark} == "${cd_bookmarks_temporary}" ]]; then
             echo  "error: Can't save a bookmark to the default slot [${cd_bookmarks_temporary}" > /dev/stderr
-            echo "        \$cd_bookmarks_temporary is set at the top of this function"
+            echo "        \$cd_bookmarks_temporary is set at the top of this function" > /dev/stderr
             return -1
         fi
 

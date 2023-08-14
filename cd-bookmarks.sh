@@ -7,72 +7,43 @@
 #
 # This (ab)uses the CDPATH functionality of bash to add bookmark functionality,
 # optionally enabling pushd when changing directories.
+
+# Location to read/write bookmarks
 CD_BOOKMARK_FILE=${CD_BOOKMARK_FILE:-"~/.cd_bookmarks"}
 
-cd_includebookmarks=1
-cd_usepushd=1
+## include bookmarks in tab completion for directories
+declare cd_includebookmarks=0
 
-[[ -f "${CD_BOOKMARK_FILE}" ]] && source "${CD_BOOKMARK_FILE}"
+## Enable pushd?
+# Q: why not pushd the target dir like a normal person?
+# A: because then the rest of the cd flags like -L or -P aren't respected
+# cd [...] will add PWD with pushd before changing direction
+# "cd -v" will run "dirs -v"
+# "cd -p" will run "popd
 
-bookmark_cd() {
-    cd_bookmarks_temporary="mark"
-    if [[ $1 == "-s" || $1 == "--save" ]]; then
-        save=1
-        shift
-    fi
+declare cd_usepushd=1
 
-    bookmark=${1:-mark}
-    dir=$2
+# If not given a bookmark, what CDPATH should we use?
+# Recommend "." or ".;~/work"
+declare cd_default_bookmark="."
 
-    # Validate
-    [[ "$dir" ]] || dir=$(pwd)
+# If not given a bookmark name (i.e. "cd -a")
+declare cd_default_bookmark_name="mark"
 
-    # Not a directory
-    if [[ ! -d "$dir" ]]; then
-        echo "$dir is not a directory" > /dev/stderr
-        return -1
-    fi
 
-    # Set the bookmark for the session
-    cd_bookmarks["$bookmark"]="$dir"
+## End of user variables.
 
-    if [[ "$save" == 1 ]]; then
-
-        # Invalid bookmark name
-        if [[ ${bookmark} == "${cd_bookmarks_temporary}" ]]; then
-            echo  "error: Can't save a bookmark to the default slot [${cd_bookmarks_temporary}" > /dev/stderr
-            echo "        \$cd_bookmarks_temporary is set at the top of this function" > /dev/stderr
-            return -1
-        fi
-
-        # Create bookmark file
-        if [[ ! -f "${CD_BOOKMARK_FILE}" ]]; then
-            > "${CD_BOOKMARK_FILE}" << EOF
-## CD BOOKMARKS
-## END OF BOOKMARKS
-## UPDATE
-cd --update
-## EOF
-
-EOF
-        fi
-
-        NEW='cd_bookmarks["$bookmark"]="'$dir'"'
-        echo Writing "$NEW" to $CD_BOOKMARK_FILE
-        if [[ $(awk "/.. END OF BOOKMARKS$/{print \"$NEW\"} //{print} " < "$CD_BOOKMARK_FILE" > "${CD_BOOKMARK_FILE}.tmp") ]]; then
-            mv "${CD_BOOKMARK_FILE}.tmp" "${CD_BOOKMARK_FILE}"
-        else
-            echo Error, not clobing old ${CD_BOOKMARK_FILE}
-        fi
-    fi
-
-    cd --update
-}
-
+## Create default bookmark, if it doesn't exist
+if [[ -z ${cd_bookmarks} ]]; then
+    declare -A cd_bookmarks
+    cd_bookmarks["default"]=${cd_default_bookmark}
+fi
 
 
 function _cdb_help {
+    # Normal cd help
     \cd --help
+    # Appends our help to the end
     echo
     echo '    CD-BOOKMARKS.sh:
     This script has added the ability to use bookmarks to cd.
@@ -114,27 +85,6 @@ function _cdb_help {
 "'
 }
 
-
-
-## include bookmarks in tab completion for directories
-declare cd_includebookmarks=0
-
-## enable pushd when changing directories
-# Q: why not pushd the target dir like a normal person?
-# A: because then the rest of the cd flags like -L or -P aren't respected
-declare cd_usepushd=1;
-
-# cd [...] will add PWD with pushd before changing direction
-# cd -v will run dirs -v
-# cd -p will run popd
-
-## Create default bookmark
-# set CDPATH to "."
-if [[ -z ${cd_bookmarks} ]]; then
-    declare -A cd_bookmarks
-    cd_bookmarks["default"]="."
-fi
-
 ## Alias and complete
 # Replace "cd" with "cdb"
 alias cd=cdb
@@ -157,7 +107,9 @@ function cdb {
                   fi;;
             "--help") _cdb_help; return;;
             "--update") _cdb_update; return;;
+            # Everything else gets passed to cd
             -[A-Za-z]) cdopts+=" $1";;
+
             *) if [[ -z "$directory" ]]; then
                    directory=$1;
                elif [[ -z "$bookmark" ]]; then
@@ -216,9 +168,9 @@ function cdb {
     # Q: why not just pushd instead of cd?
     # A: to respect all the flags to cd like -L or -P
     if [[ ${cd_usepushd} ]]; then
-       if [[ "$OLDPWD" != "$PWD" ]]; then
+        if [[ "$OLDPWD" != "$PWD" ]]; then
             pushd . 2>&1 > /dev/null
-       fi
+        fi
     fi
 
     if [[ "$directory" == "-" ]]; then

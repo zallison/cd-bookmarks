@@ -147,6 +147,7 @@ function cdb {
 
     while [[ "$1" ]]; do
         case "$1" in
+            "-a") shift;add_cd_bookmark $*; return;;
             "-p") popd; return;;
             "-v") dirs -v; return;;
             "-b") if [[ $2 ]]; then
@@ -355,4 +356,60 @@ function _cdb_update() {
             bookmark_index="$i ${bookmark_index}"
         fi
     done
+}
+
+
+[[ -f "${CD_BOOKMARK_FILE}" ]] && source "${CD_BOOKMARK_FILE}"
+
+add_cd_bookmark() {
+    if [[ $1 == "-s" || $1 == "--save" ]]; then
+        save=1
+        shift
+    fi
+
+    bookmark=${1:-${cd_default_bookmark_name}}
+    dir=${2:-.}
+
+    # Validate
+    [[ "$dir" ]] || dir=$(pwd)
+
+    # Not a directory
+    if [[ ! -d "$dir" ]]; then
+        echo "$dir is not a directory" >> /dev/stderr
+        return -1
+    fi
+
+    # Set the bookmark for the session
+    cd_bookmarks["$bookmark"]="$dir"
+
+    if [[ "$save" == 1 ]]; then
+
+        # Invalid bookmark name
+        if [[ ${bookmark} == "${cd_bookmarks_temporary}" ]]; then
+            echo  "error: Can't save a bookmark to the default slot [${cd_bookmarks_temporary}" >> /dev/stderr
+            echo "        \$cd_bookmarks_temporary is set at the top of this script" >> /dev/stderr
+            return -1
+        fi
+
+        NEW_bookmark='cd_bookmarks["'$bookmark'"]'
+        NEW='cd_bookmarks["'$bookmark'"]'="${dir}"
+
+
+        # Create empty bookmark file
+        [[ ! -f "${CD_BOOKMARK_FILE}" ]] && > ${CD_BOOKMARK_FILE} cat <<-EOF
+## cd-bookmarks.sh - persistent bookmark file - see --help for more
+## END
+cd --update
+## EOF
+EOF
+    fi
+
+    tmp=$(mktemp XXXXXXXXXXXXXXXXXXXXXXXXX)
+
+    while read line; do
+        [[ "${line}" == "## END" ]] && echo $NEW
+        echo $line
+    done  < "${CD_BOOKMARK_FILE}" > "${tmp}" && cat "${tmp}" > "${CD_BOOKMARK_FILE}" && rm "${tmp}"
+
+    cd --update
 }

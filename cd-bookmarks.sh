@@ -181,6 +181,7 @@ function cdb {
     elif [[ -z "$bookmark" &&  -n "$directory" && -d "$directory" ]]; then
         # A directory, no bookmark, and the directory exists as a full path
         tmpcdpath=.
+
     elif [[ -n "$bookmark" && -z "$directory" ]]; then
         # Bookmark, but no directory,
         if [[ -n "$bookmark" && -z "${cd_bookmarks[$bookmark]}" ]]; then
@@ -188,10 +189,12 @@ function cdb {
         fi
         directory="${cd_bookmarks[$bookmark]}"
         bookmark=default
+
     elif [[ -z "$bookmark" && -n "$directory" && -n "${cd_bookmarks[$directory]}" ]]; then
         # "Directory" which is a bookmark
         directory="${cd_bookmarks[$directory]}"
         tmpcdpath=
+
     elif [[ -n "$bookmark" && -d "${cd_bookmarks[$directory]}" ]]; then
         directory="${cd_bookmarks[$directory]}"
         tmpcdpath=
@@ -206,8 +209,8 @@ function cdb {
             tmpcdpath=${cd_bookmarks[$bookmark]}
         fi
     fi
-    ###############
 
+    ###############
     ## if `pushd` is enabled add PWD when changing directories.
     # Q: why not just pushd instead of cd?
     # A: to respect all the flags to cd like -L or -P
@@ -251,11 +254,13 @@ function _cdb {
         compopt +o nospace
         COMPREPLY=($(compgen -W "${bookmark_index}" -- "$curr") )
         return
+
     elif [[ "$curr" == "-"* ]]; then
         # Return options
         compopt +o nospace
         COMPREPLY=($(compgen -W "- -L -P -e -@ --help -b" -- "$curr") )
         return
+
     elif [[ "$curr" && ${cd_bookmarks["$curr"]} ]]; then
         compopt +o nospace
         COMPREPLY=($curr)

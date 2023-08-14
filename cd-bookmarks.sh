@@ -320,7 +320,7 @@ add_cd_bookmark() {
     fi
 
     bookmark=${1:-${cd_default_bookmark_name}}
-    dir=${2:-.}
+    dir=${2}
 
     # Validate
     [[ "$dir" ]] || dir=$(pwd)

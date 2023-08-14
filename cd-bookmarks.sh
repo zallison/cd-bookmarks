@@ -332,6 +332,7 @@ add_cd_bookmark() {
     fi
 
     # Set the bookmark for the session
+    old=${cd_bookmarks["$bookmark"]}
     cd_bookmarks["$bookmark"]="$dir"
 
     if [[ "$save" == 1 ]]; then
@@ -359,8 +360,12 @@ EOF
     tmp=$(mktemp XXXXXXXXXXXXXXXXXXXXXXXXX)
 
     while read line; do
-        [[ "${line}" == "## END" ]] && echo $NEW
-        echo $line
+        case "$line" in
+            "$NEW_bookmark"*) echo warning: replacing old bookmark "$old" > /dev/stderr;;
+            "## END") echo $NEW; echo $line;;
+            *) echo $line
+        esac
+
     done  < "${CD_BOOKMARK_FILE}" > "${tmp}" && cat "${tmp}" > "${CD_BOOKMARK_FILE}" && rm "${tmp}"
 
     cd --update

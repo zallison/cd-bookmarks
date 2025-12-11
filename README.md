@@ -22,13 +22,19 @@ the first argument
 
 Usage:
 
-    cd -b  # list bookmarks
+    cd -b                   # list bookmarks
 
-    cd [-b] bookmark # cd to a bookmark
+    cd [-b] bookmark        # cd to a bookmark
 
 	cd my_bookmark subdir
     cd -b my_bookmark subdir
 	cd subdir -b my_bookmark # cd to a directory "subdir" below bookmark "my_bookmark"
+
+Bookmark management:
+
+    cd -a [name] [dir]      # add/update bookmark (dir defaults to current dir)
+    cd -a -s [name] [dir]   # add/update bookmark and save to disk
+    cd -S name              # save bookmark for current dir (sugar for -a -s)
 
     # with pushd enabled
     ~$ cd /dir1
@@ -45,8 +51,13 @@ Load cd-bookmarks, in .bashrc or elsewhere:
 
     source /path/to/cd-bookmarks.sh
 
-And set your bookmarks:
+And set your bookmarks (in your shell startup or interactively):
 
+    cd -a project1 /path/to/bookmark     # in-session bookmark
+    cd -a -s project2 /other/bookmark    # persistent bookmark (saved to disk)
+    cd -S local_tmp                      # save current directory as "local_tmp"
+
+You can also set them directly in bash if you prefer:
 
     cd_bookmarks[project1]=/path/to/bookmark
     cd_bookmarks[project2]=/other/bookmark
@@ -56,12 +67,13 @@ And set your bookmarks:
 	# Update the index after changing bookmarks
     cd --update
 
-The default bookmark" is `.`, but you can change that if you want.
+The default bookmark is `.`, but you can change that if you want.
 
-    cd_BOOKMARKS["default"]=.:~/work
+    cd_bookmarks["default"]=.:~/work
 
-You may optionally have it use pushd and add "cd -p" to call popd. These let you
-    keep a history of the paths you have been in and return to them.
+You may optionally have it use pushd and add "cd -p" to call popd. Set
+`cd_usepushd=1` (default) to enable, or `cd_usepushd=0` to disable this behavior.
+These let you keep a history of the paths you have been in and return to them.
 
         cd -p # run "popd"
         cd -v # run "dirs -v"

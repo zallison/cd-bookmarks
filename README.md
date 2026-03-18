@@ -56,7 +56,19 @@ And set your bookmarks:
 	# Update the index after changing bookmarks
     cd --update
 
-The default bookmark" is `.`, but you can change that if you want.
+Persistent bookmark file
+------------------------
+
+By default, persistent bookmarks are stored in:
+
+    $HOME/.cd_bookmarks
+
+You can override this by setting `CD_BOOKMARK_FILE` before loading
+`cd-bookmarks.sh`:
+
+    export CD_BOOKMARK_FILE="$HOME/.config/cd-bookmarks/bookmarks.sh"
+
+The default bookmark is `.`, but you can change that if you want.
 
     cd_BOOKMARKS["default"]=.:~/work
 

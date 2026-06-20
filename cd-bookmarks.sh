@@ -98,25 +98,52 @@ alias cd_bookmark=bookmark_cd
 alias bookmark=bookmark_cd
 
 
+function _cdb_help {
+	builtin help cd
+	echo
+	cat <<'EOF'
+    CD-BOOKMARKS.sh:
+	This script has added the ability to use bookmarks to cd.
+	Examples:
+		cd -b  # list bookmarks
+		cd [-b] bookmark # cd to a bookmark
+		cd [-b] bookmark subdir # cd to a directory below a bookmark
 
-## include bookmarks in tab completion for directories
-declare cd_includebookmarks=0
+	Load cd-bookmarks, in .bashrc or elsewhere:
 
-## enable pushd when changing directories
-# Q: why not pushd the target dir like a normal person?
-# A: because then the rest of the cd flags like -L or -P aren't respected
-declare cd_usepushd=1;
+		source /path/to/cd-bookmarks.sh
 
-# cd [...] will add PWD with pushd before changing direction
-# cd -v will run dirs -v
-# cd -p will run popd
+	Set your bookmarks, in .bashrc or elsewhere:
+		cd_includebookmarks=1 # [optional] include bookmarks in tab completion
+							  # 2 means ONLY show bookmarks
+		cd_usepushd=1 # [optional] use pushd so we can popd (or cd -p) back
+		cd_bookmarks["name"]="/path/to/bookmark" # add a bookmark
+		cd_bookmarks["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
+		cd --update # re-index the bookmarks
 
-## Create default bookmark
-# set CDPATH to "."
-if [[ -z ${cd_bookmarks} ]]; then
-    declare -A cd_bookmarks
-    cd_bookmarks["default"]="."
-fi
+	After updating bookmark file by hand run `cd --update`
+
+	The default "bookmark" is ".", but you can change that if you want.
+		cd_bookmarks["default"]=".:${HOME}/projects"
+
+	You may optionally have it use pushd and add "cd -p" to call popd. These
+	let you keep a history of the paths you have been in and return to them.
+
+		cd -p # run "popd"
+		cd -v # run "dirs -v"
+		cd -c # run "dirs -c"
+
+	e.g.:
+	  ~$ cd mydir
+	  ~/mydir$ cd /usr/mydir2
+	  /usr/mydir2$ cd -p
+	  ~/mydir$ cd -p
+	  ~$
+EOF
+}
+
+
+
 
 ## Alias and complete
 # Replace "cd" with "cdb"
@@ -124,92 +151,89 @@ alias cd=cdb
 complete -F _cdb cd
 
 function cdb {
-    local cdopts
-    local bookmark
-    local directory
+	local bookmark=''
+	local directory=''
+	local tmpcdpath
+	local first_dir
+	local start_pwd
+	local -a cdopts=()
 
-    while [[ "$1" ]]; do
-        case "$1" in
-            "-p") popd; return;;
-            "-v") dirs -v; return;;
-            "-b") if [[ $2 ]]; then
-                      bookmark=$2; shift;
-                  else
-                      _cdb_show_list; return 0
-                  fi;;
-            "--help") _cdb_help; return;;
-            "--update") _cdb_update; return;;
-            -[A-Za-z]) cdopts+=" $1";;
-            *) if [[ -z "$directory" ]]; then
-                   directory=$1;
-               elif [[ -z "$bookmark" ]]; then
-                   bookmark=$directory
-                   directory=$1
-               else
-                   echo "Too many arguments"
-                   return 1
-               fi;;
-        esac
-        shift;
-    done
+	start_pwd="${PWD}"
 
-    # Remove trailing slashes to check for hash
-    # e.g.: my_bookmark/ -> my_bookmark
-    directory=${directory%%/}
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			"-p") popd || return 1; return;;
+			"-v") dirs -v; return;;
+			"-c") dirs -c; return;;
+			"-b") if [[ ${2-} ]]; then
+					  bookmark=$2; shift;
+				  else
+					  _cdb_show_list; return 0
+				  fi;;
+			"--help") _cdb_help; return;;
+			"--update") _cdb_update; return;;
+			-[A-Za-z]) cdopts+=("$1");;
+			*) if [[ -z "$directory" ]]; then
+				   directory=$1;
+			   elif [[ -z "$bookmark" ]]; then
+				   bookmark=$directory
+				   directory=$1
+			   else
+				   echo "Too many arguments"
+				   return 1
+			   fi;;
+		esac
+		shift;
+	done
 
-    ## Determine path to cd to
-    local tmpcdpath=${cd_bookmarks[${bookmark:-default}]}
-    if [[ -z "$bookmark" && -z "$directory" ]]; then
-        :
-    elif [[ -z "$bookmark" &&  -n "$directory" && -d "$directory" ]]; then
-        # A directory, no bookmark, and the directory exists as a full path
-        tmpcdpath=.
+	# Remove trailing slash from bookmark token.
+	directory=${directory%%/}
 
-    elif [[ -n "$bookmark" && -z "$directory" ]]; then
-        # Bookmark, but no directory,
-        if [[ -n "$bookmark" && -z "${cd_bookmarks[$bookmark]}" ]]; then
-            echo "Unknown bookmark: $bookmark"; return 1;
-        fi
-        directory="${cd_bookmarks[$bookmark]}"
-        bookmark=default
+	# Determine path list to use for cd resolution.
+	tmpcdpath=${cd_bookmarks[${bookmark:-default}]}
 
-    elif [[ -z "$bookmark" && -n "$directory" && -n "${cd_bookmarks[$directory]}" ]]; then
-        # "Directory" which is a bookmark
-        directory="${cd_bookmarks[$directory]}"
-        tmpcdpath=
+	if [[ -n "$bookmark" && -z "${cd_bookmarks[$bookmark]+_}" ]]; then
+		echo "Unknown bookmark: $bookmark"; return 1;
+	fi
 
-    elif [[ -n "$bookmark" && -d "${cd_bookmarks[$directory]}" ]]; then
-        directory="${cd_bookmarks[$directory]}"
-        tmpcdpath=
-    fi
+	if [[ -z "$bookmark" && -z "$directory" ]]; then
+		:
+	elif [[ -z "$bookmark" &&  -n "$directory" && -d "$directory" ]]; then
+		# A real directory path was provided directly.
+		tmpcdpath=.
+	elif [[ -n "$bookmark" && -z "$directory" ]]; then
+		# Bookmark only: cd directly to bookmark target.
+		directory="${cd_bookmarks[$bookmark]}"
+		bookmark=default
+	elif [[ -z "$bookmark" && -n "$directory" && -n "${cd_bookmarks[$directory]-}" ]]; then
+		# "Directory" token is actually a bookmark name.
+		directory="${cd_bookmarks[$directory]}"
+		tmpcdpath=
+	fi
 
-    if [[ -z "$bookmark" && ! -z "$directory" ]]; then
-        first_dir=${directory%/*}
-        first_dir=${first_dir%%/*}
-        if [[ -n "$first_dir" && ! -z ${cd_bookmarks[${first_dir}]} ]]; then
-            bookmark=${first_dir}
-            directory=${directory#*/}
-            tmpcdpath=${cd_bookmarks[$bookmark]}
-        fi
-    fi
+	# Support path shorthand like bookmark/subdir.
+	if [[ -z "$bookmark" && -n "$directory" ]]; then
+		first_dir=${directory%%/*}
+		if [[ -n "$first_dir" && -n ${cd_bookmarks[${first_dir}]-} ]]; then
+			bookmark=${first_dir}
+			directory=${directory#*/}
+			tmpcdpath=${cd_bookmarks[$bookmark]}
+		fi
+	fi
 
-    ###############
-    ## if `pushd` is enabled add PWD when changing directories.
-    # Q: why not just pushd instead of cd?
-    # A: to respect all the flags to cd like -L or -P
-    if [[ ${cd_usepushd} ]]; then
-       if [[ "$OLDPWD" != "$PWD" ]]; then
-            pushd . 2>&1 > /dev/null
-       fi
-    fi
+	# Change directory first. Only update stack if cd succeeded.
+	if [[ "$directory" == "-" ]]; then
+		command cd "${cdopts[@]}" - || return 1
+	elif [[ -z "$bookmark" && -z "$directory" ]]; then
+		command cd "${cdopts[@]}" || return 1
+	else
+		CDPATH="${tmpcdpath}" command cd "${cdopts[@]}" "$directory" || return 1
+	fi
 
-    if [[ "$directory" == "-" ]]; then
-        command cd ${cdopts} - || return 1
-    elif [[ -z "$bookmark" && -z "$directory" ]]; then
-        command cd ${cdopts} || return 1
-    else
-        CDPATH="${tmpcdpath}" command cd ${cdopts} "$directory" || return 1
-    fi
+	# Keep pushd/popd history without changing current directory.
+	if [[ "${cd_usepushd}" == "1" && "${start_pwd}" != "${PWD}" ]]; then
+		pushd -n -- "${start_pwd}" > /dev/null || return 1
+	fi
 }
 
 

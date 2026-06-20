@@ -30,6 +30,12 @@ Usage:
     cd -b my_bookmark subdir
 	cd subdir -b my_bookmark # cd to a directory "subdir" below bookmark "my_bookmark"
 
+    # bookmark creation via cd/cdb
+    cd --save my_bookmark /path/to/dir  # save bookmark persistently
+    cd --save my_bookmark               # save current directory ($PWD)
+    cd --mem scratch /tmp               # temporary/session-only bookmark
+    bookmark my_bookmark /path/to/dir   # compatibility alias
+
     # with pushd enabled
     ~$ cd /dir1
     /dir1$ cd /dir2

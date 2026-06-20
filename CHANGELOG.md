@@ -7,10 +7,15 @@ All notable changes to this project are documented in this file.
 ### Added
 - Added a standalone regression test suite at `tests/regression.sh`.
 - Added regression coverage for bookmark persistence, explicit `-b` resolution, pushd stack behavior, config defaults, and index update idempotency.
+- Added regression coverage for direct bookmark creation with `cdb --save` / `cdb --mem` and `$PWD` default path resolution.
 
 ### Changed
 - Changed persistent bookmark file handling to use `CD_BOOKMARKS_FILE` consistently.
 - Changed bookmark save behavior to use atomic writes through a temporary file before replace.
+- Changed `bookmark` / `cd_bookmark` behavior so bookmarks are saved persistently by default.
+- Added `--mem` mode for session-only bookmark updates without writing the bookmark file.
+- Added direct bookmark creation via `cd --save` and `cd --mem` (through `cdb`) so creating bookmarks no longer requires calling `bookmark`.
+- Changed bookmark path defaulting so omitted paths resolve to the current directory (`$PWD`).
 - Changed `cdb` option parsing and internal handling to be safe under `set -u` / nounset.
 - Changed completion handling to use safer array and `mapfile` patterns.
 - Improved bookmark list formatting and bookmark index rebuild behavior.

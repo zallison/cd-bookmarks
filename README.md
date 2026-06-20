@@ -55,6 +55,15 @@ And set your bookmarks:
 
 	# Update the index after changing bookmarks
     cd --update
+Testing
+-------
+
+Run the regression suite:
+
+    bash tests/regression.sh
+
+The suite covers bookmark persistence, argument resolution, pushd behavior,
+and configuration/index edge-cases.
 
 Persistent bookmark file
 ------------------------
@@ -63,14 +72,14 @@ By default, persistent bookmarks are stored in:
 
     $HOME/.cd_bookmarks
 
-You can override this by setting `CD_BOOKMARK_FILE` before loading
+You can override this by setting `CD_BOOKMARKS_FILE` before loading
 `cd-bookmarks.sh`:
 
-    export CD_BOOKMARK_FILE="$HOME/.config/cd-bookmarks/bookmarks.sh"
+    export CD_BOOKMARKS_FILE="$HOME/.config/cd-bookmarks/bookmarks.sh"
 
 The default bookmark is `.`, but you can change that if you want.
 
-    cd_BOOKMARKS["default"]=.:~/work
+    cd_bookmarks["default"]=.:~/work
 
 You may optionally have it use pushd and add "cd -p" to call popd. These let you
     keep a history of the paths you have been in and return to them.

@@ -31,6 +31,7 @@ run_test() {
 		fail "${name}"
 	fi
 }
+
 source_under_test() {
 	# shellcheck disable=SC1091
 	# shellcheck source=../cd-bookmarks.sh
@@ -130,7 +131,7 @@ test_explicit_bookmark_flag_wins_over_subdir_name_collision() {
 	[[ "${PWD}" == "${base}/work/docs" ]]
 }
 
-test_bookmark_save_persists_cd_bookmarks_map() {
+test_cdb_save_persists_cd_bookmarks_map() {
 	local temp_home save_file
 	temp_home="$(mktemp -d)" || return 1
 	save_file="$(mktemp)" || return 1
@@ -140,7 +141,7 @@ test_bookmark_save_persists_cd_bookmarks_map() {
 	CD_BOOKMARKS_FILE="${save_file}"
 	declare -A cd_bookmarks=([default]='.')
 
-	bookmark_cd -s work /tmp || return 1
+	cdb --save work /tmp || return 1
 
 	[[ -f "${save_file}" ]] || return 1
 	[[ "$(sed -n '1p' "${save_file}")" == 'declare -A cd_bookmarks=(' ]] || return 1
@@ -151,23 +152,47 @@ test_bookmark_save_persists_cd_bookmarks_map() {
 	[[ "${cd_bookmarks[work]}" == '/tmp' ]]
 }
 
-test_save_flag_does_not_leak_between_calls() {
-	local temp_home save_file snapshot_file
+test_cdb_mem_mode_is_session_only() {
+	local temp_home save_file
 	temp_home="$(mktemp -d)" || return 1
 	save_file="$(mktemp)" || return 1
-	snapshot_file="$(mktemp)" || return 1
+	rm -f -- "${save_file}" || return 1
 	HOME="${temp_home}"
 	unset CD_BOOKMARKS_FILE cd_bookmarks CD_BOOKMARKS
 	source_under_test || return 1
 	CD_BOOKMARKS_FILE="${save_file}"
 	declare -A cd_bookmarks=([default]='.')
 
-	bookmark_cd -s one /tmp || return 1
-	cp -- "${save_file}" "${snapshot_file}" || return 1
+	cdb --mem one /tmp || return 1
+	[[ ! -e "${save_file}" ]] || return 1
+	cdb --save two /tmp || return 1
+	[[ -f "${save_file}" ]] || return 1
 
-	bookmark_cd two /tmp || return 1
+	unset cd_bookmarks
+	# shellcheck disable=SC1090
+	source "${save_file}" || return 1
+	[[ "${cd_bookmarks[one]-}" == '' ]] || return 1
+	[[ "${cd_bookmarks[two]}" == '/tmp' ]]
+}
 
-	cmp -s "${snapshot_file}" "${save_file}"
+test_cdb_save_without_path_uses_pwd() {
+	local temp_home save_file target_dir
+	temp_home="$(mktemp -d)" || return 1
+	save_file="$(mktemp)" || return 1
+	target_dir="$(mktemp -d)" || return 1
+	HOME="${temp_home}"
+	unset CD_BOOKMARKS_FILE cd_bookmarks CD_BOOKMARKS
+	source_under_test || return 1
+	CD_BOOKMARKS_FILE="${save_file}"
+	declare -A cd_bookmarks=([default]='.')
+
+	builtin cd "${target_dir}" || return 1
+	cdb --save current || return 1
+
+	unset cd_bookmarks
+	# shellcheck disable=SC1090
+	source "${save_file}" || return 1
+	[[ "${cd_bookmarks[current]}" == "${target_dir}" ]]
 }
 
 test_bookmark_cd_rejects_missing_directory() {
@@ -191,8 +216,9 @@ main() {
 	run_test 'pushd can be disabled' test_pushd_can_be_disabled
 	run_test 'failed cd does not mutate stack' test_failed_cd_does_not_mutate_directory_stack
 	run_test 'explicit -b wins over name collision' test_explicit_bookmark_flag_wins_over_subdir_name_collision
-	run_test 'bookmark save persists cd_bookmarks map' test_bookmark_save_persists_cd_bookmarks_map
-	run_test 'save flag does not leak between calls' test_save_flag_does_not_leak_between_calls
+	run_test 'cdb --save persists cd_bookmarks map' test_cdb_save_persists_cd_bookmarks_map
+	run_test 'cdb --mem mode is session only' test_cdb_mem_mode_is_session_only
+	run_test 'cdb --save without path uses current directory' test_cdb_save_without_path_uses_pwd
 	run_test 'bookmark_cd rejects missing directories' test_bookmark_cd_rejects_missing_directory
 
 	printf '\nSummary: %s passed, %s failed\n' "${PASS_COUNT}" "${FAIL_COUNT}"

@@ -38,104 +38,64 @@ fi
 : "${cd_bookmarks[default]:=.}"
 
 bookmark_cd() {
-    cd_bookmarks_temporary="mark"
-    if [[ $1 == "-s" || $1 == "--save" ]]; then
-        save=1
-        shift
-    fi
+	local cd_bookmarks_temporary='mark'
+	local bookmark dir
+	local save=0
+	local tmp_file key
 
-    bookmark=${1:-mark}
-    dir=$2
+	if [[ "${1-}" == '-s' || "${1-}" == '--save' ]]; then
+		save=1
+		shift
+	fi
 
-    # Validate
-    [[ "$dir" ]] || dir=$(pwd)
+	bookmark=${1:-mark}
+	dir=${2:-"${PWD}"}
 
-    # Not a directory
-    if [[ ! -d "$dir" ]]; then
-        echo "$dir is not a directory" > /dev/stderr
-        return -1
-    fi
+	# Not a directory.
+	if [[ ! -d "$dir" ]]; then
+		echo "$dir is not a directory" > /dev/stderr
+		return 1
+	fi
 
-    # Set the bookmark for the session
-    cd_bookmarks["$bookmark"]="$dir"
+	# Update the bookmark for this shell session.
+	cd_bookmarks["$bookmark"]="$dir"
 
-    if [[ "$save" == 1 ]]; then
+	if [[ "$save" -eq 1 ]]; then
+		# Prevent persisting the temporary default slot.
+		if [[ ${bookmark} == "${cd_bookmarks_temporary}" ]]; then
+			echo "error: Can't save a bookmark to the default slot [${cd_bookmarks_temporary}" > /dev/stderr
+			echo "       Choose an explicit bookmark name when using --save" > /dev/stderr
+			return 1
+		fi
 
-        # Invalid bookmark name
-        if [[ ${bookmark} == "${cd_bookmarks_temporary}" ]]; then
-            echo  "error: Can't save a bookmark to the default slot [${cd_bookmarks_temporary}" > /dev/stderr
-            echo "        \$cd_bookmarks_temporary is set at the top of this function" > /dev/stderr
-            return -1
-        fi
+		if ! mkdir -p -- "$(dirname -- "${CD_BOOKMARKS_FILE}")"; then
+			echo "error: Failed to create bookmark directory for ${CD_BOOKMARKS_FILE}" > /dev/stderr
+			return 1
+		fi
 
-        # Create bookmark file
-        if [[ ! -f "${CD_BOOKMARK_FILE}" ]]; then
-            > "${CD_BOOKMARK_FILE}" << EOF
-## CD BOOKMARKS
-## END OF BOOKMARKS
-## UPDATE
-cd --update
-## EOF
+		# Write atomically through a temporary file.
+		tmp_file="${CD_BOOKMARKS_FILE}.tmp"
+		if ! (
+			echo 'declare -A cd_bookmarks=('
+			for key in "${!cd_bookmarks[@]}"; do
+				printf '    [%q]=%q\n' "$key" "${cd_bookmarks[$key]}"
+			done
+			echo ')'
+		) > "${tmp_file}"; then
+			echo "error: Failed to write temporary bookmark file ${tmp_file}" > /dev/stderr
+			return 1
+		fi
 
-EOF
-        fi
+		if ! mv -- "${tmp_file}" "${CD_BOOKMARKS_FILE}"; then
+			echo "error: Failed to replace ${CD_BOOKMARKS_FILE}" > /dev/stderr
+			return 1
+		fi
+	fi
 
-        NEW='cd_bookmarks["$bookmark"]="'$dir'"'
-        echo Writing "$NEW" to $CD_BOOKMARK_FILE
-        if [[ $(awk "/.. END OF BOOKMARKS$/{print \"$NEW\"} //{print} " < "$CD_BOOKMARK_FILE" > "${CD_BOOKMARK_FILE}.tmp") ]]; then
-            mv "${CD_BOOKMARK_FILE}.tmp" "${CD_BOOKMARK_FILE}"
-        else
-            echo Error, not clobing old ${CD_BOOKMARK_FILE}
-        fi
-    fi
-
-    cd --update
+	_cdb_update
 }
-
-
-
-function _cdb_help {
-    \cd --help
-    echo
-    echo '    CD-BOOKMARKS.sh:
-    This script has added the ability to use bookmarks to cd.
-    Examples:
-        cd -b  # list bookmarks
-        cd [-b] bookmark # cd to a bookmark
-        cd [-b] bookmark subdir # cd to a directory below a bookmark
-
-    Load cd-bookmarks, in .bashrc or elsewhere:
-
-        source /path/to/cd-bookmarks.sh
-
-    Set your bookmarks, in .bashrc or elsewhere:
-        cd_includebookmarks=1 # [optional] include bookmarks in tab completion
-                              # 2 means ONLY show bookmarks
-        cd_usepushd=1 # [optional] use pushd so we can popd (or cd -p) back
-        cd_bookmarks["name"]="/path/to/bookmark" # add a bookmark
-        cd_bookmarks["mulitpath"]="/path/to/bookmark1:/path/to/bookmark2"
-        cd --update # re-index the bookmarks
-
-    After updating bookmarks run `cd --update`
-
-    The default "bookmark" is ".", but you can change that if you want.
-        cd_bookmarks["default"]=".:${HOME}/projects/
-
-    You may optionally have it use pushd and add "cd -p" to call popd. These
-    let you keep a history of the paths you have been in and return to them.
-
-        cd -p # run "popd"
-        cd -v # run "dirs -v"
-        cd -c # run "dirs -c"
-
-    e.g.:
-      ~$ cd mydir
-      ~/mydir$ cd /usr/mydir2
-      /usr/mydir2$ cd -p
-      ~/mydir$ cd -p
-      ~$
-"'
-}
+alias cd_bookmark=bookmark_cd
+alias bookmark=bookmark_cd
 
 
 

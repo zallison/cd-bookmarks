@@ -7,12 +7,35 @@
 #
 # This (ab)uses the CDPATH functionality of bash to add bookmark functionality,
 # optionally enabling pushd when changing directories.
-CD_BOOKMARK_FILE=${CD_BOOKMARK_FILE:-"~/.cd_bookmarks"}
+CD_BOOKMARKS_FILE=${CD_BOOKMARKS_FILE:-"${HOME}/.cd_bookmarks"}
 
-cd_includebookmarks=1
-cd_usepushd=1
+# Allow users to pre-set these before sourcing.
+: "${cd_includebookmarks:=0}"
+: "${cd_usepushd:=1}"
 
-[[ -f "${CD_BOOKMARK_FILE}" ]] && source "${CD_BOOKMARK_FILE}"
+if [[ -f "${CD_BOOKMARKS_FILE}" ]]; then
+	# Keep shell usable even if persisted bookmark file is malformed.
+	# shellcheck disable=SC1090
+	if ! source "${CD_BOOKMARKS_FILE}"; then
+		echo "warning: Failed to load ${CD_BOOKMARKS_FILE}" > /dev/stderr
+	fi
+fi
+
+# Backwards compatibility for old persisted files using uppercase variable name.
+if [[ -n ${CD_BOOKMARKS+x} ]]; then
+	if [[ "$(declare -p CD_BOOKMARKS 2>/dev/null)" == "declare -A"* ]]; then
+		declare -gA cd_bookmarks
+		for key in "${!CD_BOOKMARKS[@]}"; do
+			cd_bookmarks["$key"]="${CD_BOOKMARKS[$key]}"
+		done
+	fi
+fi
+
+# Always ensure the runtime map exists and has a default bookmark.
+if ! declare -p cd_bookmarks >/dev/null 2>&1 || [[ "$(declare -p cd_bookmarks 2>/dev/null)" != "declare -A"* ]]; then
+	declare -gA cd_bookmarks=()
+fi
+: "${cd_bookmarks[default]:=.}"
 
 bookmark_cd() {
     cd_bookmarks_temporary="mark"

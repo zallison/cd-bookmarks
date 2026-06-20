@@ -123,6 +123,10 @@ function _cdb_help {
 		cd -b  # list bookmarks
 		cd [-b] bookmark # cd to a bookmark
 		cd [-b] bookmark subdir # cd to a directory below a bookmark
+		cd --save myproj /path/to/project # save bookmark persistently
+		cd --save myproj # save current directory ($PWD)
+		cd --mem scratch /tmp # session-only bookmark
+		bookmark myproj /path/to/project # compatibility alias
 
 	Load cd-bookmarks, in .bashrc or elsewhere:
 
@@ -168,6 +172,9 @@ complete -F _cdb cd
 function cdb {
 	local bookmark=''
 	local directory=''
+	local bookmark_create_mode=''
+	local bookmark_name
+	local bookmark_path
 	local tmpcdpath
 	local first_dir
 	local start_pwd
@@ -180,6 +187,8 @@ function cdb {
 			"-p") popd || return 1; return;;
 			"-v") dirs -v; return;;
 			"-c") dirs -c; return;;
+			"--mem") bookmark_create_mode='--mem';;
+			"--save"|"-s") bookmark_create_mode='--save';;
 			"-b") if [[ ${2-} ]]; then
 					  bookmark=$2; shift;
 				  else
@@ -200,6 +209,27 @@ function cdb {
 		esac
 		shift;
 	done
+	if [[ -n "${bookmark_create_mode}" ]]; then
+		if [[ -n "${bookmark}" ]]; then
+			bookmark_name=${bookmark}
+			bookmark_path=${directory}
+		else
+			bookmark_name=${directory}
+			bookmark_path=''
+		fi
+
+		if [[ -z "${bookmark_name}" ]]; then
+			echo "Usage: cd ${bookmark_create_mode} <bookmark> [path]" > /dev/stderr
+			return 1
+		fi
+
+		if [[ -n "${bookmark_path}" ]]; then
+			bookmark_cd "${bookmark_create_mode}" "${bookmark_name}" "${bookmark_path}"
+		else
+			bookmark_cd "${bookmark_create_mode}" "${bookmark_name}"
+		fi
+		return $?
+	fi
 
 	# Remove trailing slash from bookmark token.
 	directory=${directory%%/}
@@ -279,7 +309,7 @@ function _cdb {
 	elif [[ "$curr" == "-"* ]]; then
 		# Return options.
 		compopt +o nospace
-		mapfile -t COMPREPLY < <(compgen -W "- -L -P -e -@ --help --update -b -c -p -v" -- "$curr")
+		mapfile -t COMPREPLY < <(compgen -W "- -L -P -e -@ --help --update --save --mem -s -b -c -p -v" -- "$curr")
 		return
 	elif [[ "$curr" && ${cd_bookmarks["$curr"]-} ]]; then
 		compopt +o nospace

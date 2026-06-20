@@ -25,9 +25,10 @@ fi
 if [[ -n ${CD_BOOKMARKS+x} ]]; then
 	if [[ "$(declare -p CD_BOOKMARKS 2>/dev/null)" == "declare -A"* ]]; then
 		declare -gA cd_bookmarks
-		for key in "${!CD_BOOKMARKS[@]}"; do
-			cd_bookmarks["$key"]="${CD_BOOKMARKS[$key]}"
+		for cdb_key in "${!CD_BOOKMARKS[@]}"; do
+			cd_bookmarks["$cdb_key"]="${CD_BOOKMARKS[$cdb_key]}"
 		done
+		unset cdb_key
 	fi
 fi
 
@@ -37,16 +38,29 @@ if ! declare -p cd_bookmarks >/dev/null 2>&1 || [[ "$(declare -p cd_bookmarks 2>
 fi
 : "${cd_bookmarks[default]:=.}"
 
+# Keep a persistent-only bookmark map so --mem entries are not written to disk.
+if ! declare -p cd_bookmarks_persistent >/dev/null 2>&1 || [[ "$(declare -p cd_bookmarks_persistent 2>/dev/null)" != "declare -A"* ]]; then
+	declare -gA cd_bookmarks_persistent=()
+fi
+for cdb_key in "${!cd_bookmarks[@]}"; do
+	cd_bookmarks_persistent["$cdb_key"]="${cd_bookmarks[$cdb_key]}"
+done
+unset cdb_key
+
 bookmark_cd() {
 	local cd_bookmarks_temporary='mark'
 	local bookmark dir
-	local save=0
+	local save=1
 	local tmp_file key
-
-	if [[ "${1-}" == '-s' || "${1-}" == '--save' ]]; then
-		save=1
-		shift
-	fi
+	# Default behavior is persistent save. Use --mem for session-only updates.
+	while [[ "${1-}" == '--'* || "${1-}" == '-s' ]]; do
+		case "${1-}" in
+			'--mem') save=0; shift;;
+			'--save'|'-s') save=1; shift;;
+			'--') shift; break;;
+			*) break;;
+		esac
+	done
 
 	bookmark=${1:-mark}
 	dir=${2:-"${PWD}"}
@@ -63,10 +77,11 @@ bookmark_cd() {
 	if [[ "$save" -eq 1 ]]; then
 		# Prevent persisting the temporary default slot.
 		if [[ ${bookmark} == "${cd_bookmarks_temporary}" ]]; then
-			echo "error: Can't save a bookmark to the default slot [${cd_bookmarks_temporary}" > /dev/stderr
-			echo "       Choose an explicit bookmark name when using --save" > /dev/stderr
+			echo "error: Can't save a bookmark to the default slot [${cd_bookmarks_temporary}]" > /dev/stderr
+			echo "       Choose an explicit bookmark name or use --mem for temporary mode" > /dev/stderr
 			return 1
 		fi
+		cd_bookmarks_persistent["$bookmark"]="$dir"
 
 		if ! mkdir -p -- "$(dirname -- "${CD_BOOKMARKS_FILE}")"; then
 			echo "error: Failed to create bookmark directory for ${CD_BOOKMARKS_FILE}" > /dev/stderr
@@ -77,8 +92,8 @@ bookmark_cd() {
 		tmp_file="${CD_BOOKMARKS_FILE}.tmp"
 		if ! (
 			echo 'declare -A cd_bookmarks=('
-			for key in "${!cd_bookmarks[@]}"; do
-				printf '    [%q]=%q\n' "$key" "${cd_bookmarks[$key]}"
+			for key in "${!cd_bookmarks_persistent[@]}"; do
+				printf '    [%q]=%q\n' "$key" "${cd_bookmarks_persistent[$key]}"
 			done
 			echo ')'
 		) > "${tmp_file}"; then

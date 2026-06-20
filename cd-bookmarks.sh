@@ -239,127 +239,122 @@ function cdb {
 
 complete -F _cdb cdb
 function _cdb {
-    local curr prev words cword tmpcdpath TMP
-    curr="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
-    word_count=${#COMP_WORDS[@]}
-    # Unless we see a bookmark, we're using the default path list
-    tmpcdpath=${cd_bookmarks["default"]}
+	local curr prev word_count tmpcdpath
+	local -a completions=()
+	curr="${COMP_WORDS[COMP_CWORD]}"
+	prev="${COMP_WORDS[COMP_CWORD-1]}"
+	word_count=${#COMP_WORDS[@]}
+	# Unless we see a bookmark, we're using the default path list.
+	tmpcdpath=${cd_bookmarks["default"]}
 
-    # No space for completion (for directories and subdirectories)
-    compopt -o nospace
+	# No space for completion (for directories and subdirectories).
+	compopt -o nospace
 
-    if [[ -n "$prev" && ${word_count} > 1 ]]; then
-        TMP="${cd_bookmarks["$prev"]}"
-        if [[ -n "$TMP" ]]; then
-            tmpcdpath="$TMP"
-        fi
-    fi
+	if [[ -n "$prev" && ${word_count} -gt 1 ]]; then
+		if [[ -n "${cd_bookmarks["$prev"]-}" ]]; then
+			tmpcdpath="${cd_bookmarks["$prev"]}"
+		fi
+	fi
 
-    if [[ "$prev" == "-b" ]]; then
-        # Return bookmarks
-        compopt +o nospace
-        COMPREPLY=($(compgen -W "${bookmark_index}" -- "$curr") )
-        return
+	if [[ "$prev" == "-b" ]]; then
+		# Return bookmarks.
+		compopt +o nospace
+		mapfile -t COMPREPLY < <(compgen -W "${bookmark_index}" -- "$curr")
+		return
+	elif [[ "$curr" == "-"* ]]; then
+		# Return options.
+		compopt +o nospace
+		mapfile -t COMPREPLY < <(compgen -W "- -L -P -e -@ --help --update -b -c -p -v" -- "$curr")
+		return
+	elif [[ "$curr" && ${cd_bookmarks["$curr"]-} ]]; then
+		compopt +o nospace
+		COMPREPLY=("$curr")
+		return
+	fi
 
-    elif [[ "$curr" == "-"* ]]; then
-        # Return options
-        compopt +o nospace
-        COMPREPLY=($(compgen -W "- -L -P -e -@ --help -b" -- "$curr") )
-        return
+	# "Normal" cd completion with CDPATH set.
+	CDPATH="$tmpcdpath" _cdb_comp "$*"
 
-    elif [[ "$curr" && ${cd_bookmarks["$curr"]} ]]; then
-        compopt +o nospace
-        COMPREPLY=($curr)
-        return
-    fi
+	# Add in bookmark names for first positional argument.
+	if [[ "${cd_includebookmarks}" =~ ^[0-9]+$ && "${cd_includebookmarks}" -ge 1 && "${word_count}" -eq 2 ]]; then
+		if [[ "${cd_includebookmarks}" -eq 2 ]]; then
+			compopt +o nospace
+			if [[ "${word_count}" -gt 1 ]]; then
+				COMPREPLY=()
+			fi
+		fi
+		mapfile -t completions < <(compgen -W "${bookmark_index}" -- "$curr")
+		COMPREPLY+=("${completions[@]}")
 
-    # "Normal" cd completion with CDPATH set
-    CDPATH=$tmpcdpath _cdb_comp "$*"
-
-    # Add in the bookmarks
-    if [[ "$cd_includebookmarks" && "${word_count}" == 2 ]]; then
-        if [[ "$cd_includebookmarks" == "2" ]]; then
-            compopt +onospace
-            if [[ "${word_count}" > 1 ]]; then
-                COMPREPLY=()
-            fi
-        fi
-
-        COMPREPLY+=($(compgen -W "${bookmark_index}" -- "$curr") )
-
-        if [[ ${#COMPREPLY[@]} -eq 1 && "${cd_bookmarks[${COMPREPLY[0]}]}" ]]; then
-            # Add a space after completing a bookmark
-            compopt +onospace
-        fi
-    fi
+		if [[ ${#COMPREPLY[@]} -eq 1 && "${cd_bookmarks[${COMPREPLY[0]}]-}" ]]; then
+			# Add a space after completing a bookmark.
+			compopt +o nospace
+		fi
+	fi
 }
 
 # Based on the built in _cd
 function _cdb_comp {
-    local cur prev i j k
-    _init_completion || return 1;
-    local IFS='
-'
-    compopt -o filenames -o nospace;
+	local cur prev i j k
+	local IFS
+	local -a cdpath_entries
+	_init_completion || return 1;
+	compopt -o filenames -o nospace;
 
-    if [[ -z "${CDPATH:-}" || "$cur" == ?(.)?(.)/* ]]; then
-        _filedir -d
-        return
-    fi
+	if [[ -z "${CDPATH:-}" || "$cur" == ?(.)?(.)/* ]]; then
+		_filedir -d
+		return
+	fi
 
-    local -r mark_dirs=$(_rl_enabled mark-directories && echo y)
-    local -r mark_symdirs=$(_rl_enabled mark-symlinked-directories && echo y)
+	local -r mark_dirs=$(_rl_enabled mark-directories && echo y)
+	local -r mark_symdirs=$(_rl_enabled mark-symlinked-directories && echo y)
+	IFS=':'
+	read -r -a cdpath_entries <<< "${CDPATH}"
+	for i in "${cdpath_entries[@]}"; do
+		k="${#COMPREPLY[@]}";
+		while IFS= read -r j; do
+			if [[ ( -n $mark_symdirs && -h $j || -n $mark_dirs && ! -h $j ) && ! -d ${j#"$i"/} ]]; then
+				j+="/"
+			fi
+			COMPREPLY[k++]=${j#"$i"/};
+		done < <(compgen -d -- "$i"/"$cur")
+	done
 
-    for i in ${CDPATH//:/'
-'};
-    do
-        k="${#COMPREPLY[@]}";
-        for j in $( compgen -d -- "$i"/"$cur" );
-        do
-            if [[ ( -n $mark_symdirs && -h $j || -n $mark_dirs && ! -h $j ) && ! -d ${j#$i/} ]]; then
-                j+="/"
-            fi
-            COMPREPLY[k++]=${j#$i/};
-        done
-    done
+	if [[ ${#COMPREPLY[@]} -eq 1 ]]; then
+		i=${COMPREPLY[0]};
+		if [[ "$i" == "$cur" && $i != "*/" ]]; then
+			COMPREPLY[0]="${i}/"
+		fi
+	elif [[ ${#COMPREPLY[@]} -eq 0 ]]; then
+		_filedir -d
+	fi
 
-    if [[ ${#COMPREPLY[@]} -eq 1 ]]; then
-        i=${COMPREPLY[0]};
-        if [[ "$i" == "$cur" && $i != "*/" ]]; then
-            COMPREPLY[0]="${i}/"
-        fi
-    elif [[ ${#COMPREPLY[@]} -eq 0 ]]; then
-        _filedir -d
-    fi
-
-    return
+	return
 }
 
 function _cdb_show_list {
-    function _add_x_spaces {
-        for _ in $(seq 1 $(( $1 )) ); do echo -n " "; done
-    }
-    echo "Bookmarks:"
-    local maxlength tmp="[default]"
-    maxlength=${#tmp}
-    for i in "${!cd_bookmarks[@]}"; do
-        [[ ${#i} -gt ${maxlength} ]] && maxlength=${#i}
-    done
-    echo "  [default] -> ${cd_bookmarks[default]}"
-    for i in "${!cd_bookmarks[@]}"; do
-        if [[ $i != "default" ]]; then
-            echo -n "  $i "
-            _add_x_spaces $(( ${maxlength} - ${#i} ))
-            echo -e "-> ${cd_bookmarks[$i]}"
-        fi
-    done
+	echo "Bookmarks:"
+	local i maxlength tmp="[default]"
+	maxlength=${#tmp}
+	for i in "${!cd_bookmarks[@]}"; do
+		[[ ${#i} -gt ${maxlength} ]] && maxlength=${#i}
+	done
+	printf "  %-*s -> %s\n" "${maxlength}" "[default]" "${cd_bookmarks[default]}"
+	for i in "${!cd_bookmarks[@]}"; do
+		if [[ $i != "default" ]]; then
+			printf "  %-*s -> %s\n" "${maxlength}" "${i}" "${cd_bookmarks[$i]}"
+		fi
+	done
 }
 
 function _cdb_update() {
-    for i in "${!cd_bookmarks[@]}"; do
-        if [[ $i != "default" ]]; then
-            bookmark_index="$i ${bookmark_index}"
-        fi
-    done
+	local i
+	bookmark_index=
+	for i in "${!cd_bookmarks[@]}"; do
+		if [[ $i != "default" ]]; then
+			bookmark_index="$i ${bookmark_index}"
+		fi
+	done
 }
+
+_cdb_update
